@@ -24,7 +24,6 @@ provider "helm" {
   }
 }
 
-# ---------- Network ----------
 module "network" {
   source = "../../modules/network"
 
@@ -40,7 +39,6 @@ module "network" {
   tags = { Project = "capstone" }
 }
 
-# ---------- KMS (Vault auto-unseal) ----------
 module "kms" {
   source = "../../modules/kms"
 
@@ -50,7 +48,6 @@ module "kms" {
   tags = { Project = "capstone" }
 }
 
-# ---------- EKS ----------
 module "eks" {
   source = "../../modules/eks"
 
@@ -59,14 +56,13 @@ module "eks" {
   vpc_id                    = module.network.vpc_id
   private_subnet_ids        = module.network.private_subnet_ids
   public_subnet_ids         = module.network.public_subnet_ids
-  system_node_instance_type = "t3.medium"
+  system_node_instance_type = "t3.small"
   system_node_desired_size  = 2
   public_access_cidrs       = var.public_access_cidrs
 
   tags = { Project = "capstone" }
 }
 
-# ---------- IAM (IRSA roles + Karpenter node role) ----------
 module "iam" {
   source = "../../modules/iam"
 
@@ -79,9 +75,10 @@ module "iam" {
   tags = { Project = "capstone" }
 }
 
-# ---------- Karpenter ----------
 module "karpenter" {
   source = "../../modules/karpenter"
+
+  depends_on = [module.eks]
 
   environment              = "prod"
   cluster_name             = module.eks.cluster_name
