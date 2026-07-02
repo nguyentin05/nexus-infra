@@ -8,17 +8,17 @@ variable "cluster_name" {
 }
 
 variable "oidc_provider_arn" {
-  description = "ARN của OIDC provider, lấy từ module eks"
+  description = "OIDC provider ARN from the EKS module"
   type        = string
 }
 
 variable "oidc_provider_url" {
-  description = "URL OIDC provider (không có https://), lấy từ module eks"
+  description = "OIDC provider URL without the https scheme"
   type        = string
 }
 
 variable "vault_kms_key_arn" {
-  description = "ARN KMS key dùng cho Vault auto-unseal"
+  description = "KMS key ARN used for Vault auto-unseal"
   type        = string
 }
 

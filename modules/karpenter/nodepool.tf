@@ -1,4 +1,5 @@
 resource "kubernetes_manifest" "ec2_node_class" {
+  count = var.create_node_pool ? 1 : 0
   manifest = {
     apiVersion = "karpenter.k8s.aws/v1"
     kind       = "EC2NodeClass"
@@ -25,6 +26,7 @@ resource "kubernetes_manifest" "ec2_node_class" {
 }
 
 resource "kubernetes_manifest" "node_pool" {
+  count = var.create_node_pool ? 1 : 0
   manifest = {
     apiVersion = "karpenter.sh/v1"
     kind       = "NodePool"

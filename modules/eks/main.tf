@@ -140,3 +140,22 @@ resource "aws_eks_addon" "kube_proxy" {
   addon_name   = "kube-proxy"
   depends_on   = [aws_eks_node_group.system]
 }
+resource "aws_eks_access_entry" "admin" {
+  count         = var.cluster_admin_principal_arn == null ? 0 : 1
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = var.cluster_admin_principal_arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "admin" {
+  count         = var.cluster_admin_principal_arn == null ? 0 : 1
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = var.cluster_admin_principal_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.admin]
+}

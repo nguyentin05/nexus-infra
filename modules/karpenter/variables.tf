@@ -21,7 +21,7 @@ variable "karpenter_node_role_name" {
 
 variable "karpenter_version" {
   type    = string
-  default = "1.1.1"
+  default = "1.13.0"
 }
 
 variable "private_subnet_ids" {
@@ -40,4 +40,10 @@ variable "instance_families" {
 variable "instance_sizes" {
   type    = list(string)
   default = ["large", "xlarge"]
+}
+
+variable "create_node_pool" {
+  description = "Create the default Karpenter NodePool and EC2NodeClass after Karpenter CRDs are available"
+  type        = bool
+  default     = false
 }

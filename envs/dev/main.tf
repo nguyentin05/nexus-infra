@@ -51,14 +51,15 @@ module "kms" {
 module "eks" {
   source = "../../modules/eks"
 
-  environment               = "dev"
-  cluster_version           = "1.36"
-  vpc_id                    = module.network.vpc_id
-  private_subnet_ids        = module.network.private_subnet_ids
-  public_subnet_ids         = module.network.public_subnet_ids
-  system_node_instance_type = "t3.medium"
-  system_node_desired_size  = 2
-  public_access_cidrs       = ["0.0.0.0/0"]
+  environment                 = "dev"
+  cluster_version             = "1.36"
+  vpc_id                      = module.network.vpc_id
+  private_subnet_ids          = module.network.private_subnet_ids
+  public_subnet_ids           = module.network.public_subnet_ids
+  system_node_instance_type   = "t3.small"
+  system_node_desired_size    = 2
+  public_access_cidrs         = ["0.0.0.0/0"]
+  cluster_admin_principal_arn = "arn:aws:iam::065320271480:user/tin-developer"
 
   tags = { Project = "capstone" }
 }
@@ -77,6 +78,8 @@ module "iam" {
 
 module "karpenter" {
   source = "../../modules/karpenter"
+
+  depends_on = [module.eks]
 
   environment              = "dev"
   cluster_name             = module.eks.cluster_name
