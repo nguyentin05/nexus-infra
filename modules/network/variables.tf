@@ -1,5 +1,5 @@
 variable "name" {
-  description = "Tên prefix cho resource"
+  description = "Resource name prefix"
   type        = string
 }
 
@@ -30,13 +30,13 @@ variable "private_subnet_cidrs" {
 }
 
 variable "single_nat_gateway" {
-  description = "Use 1 NAT Gateway thay vì 1 NAT/AZ"
+  description = "Use a single NAT gateway instead of one NAT gateway per availability zone"
   type        = bool
   default     = true
 }
 
 variable "cluster_name" {
-  description = "EKS cluster name, dùng để tag subnet cho kubernetes.io discovery"
+  description = "EKS cluster name used for Kubernetes subnet discovery tags"
   type        = string
 }
 

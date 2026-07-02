@@ -21,7 +21,7 @@ variable "public_subnet_ids" {
 
 variable "system_node_instance_type" {
   type    = string
-  default = "t3.medium"
+  default = "t3.small"
 }
 
 variable "system_node_desired_size" {
@@ -30,7 +30,7 @@ variable "system_node_desired_size" {
 }
 
 variable "public_access_cidrs" {
-  description = "CIDR được phép truy cập public endpoint. Dev để 0.0.0.0/0, prod giới hạn IP cụ thể"
+  description = "CIDR ranges allowed to access the EKS public endpoint"
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
@@ -38,4 +38,9 @@ variable "public_access_cidrs" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+variable "cluster_admin_principal_arn" {
+  description = "IAM principal ARN granted cluster administrator access"
+  type        = string
+  default     = null
 }
