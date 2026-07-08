@@ -1,10 +1,16 @@
 output "irsa_role_arns" {
-  description = "Map role_name => ARN cho lb_controller, karpenter, external_dns, vault"
-  value       = { for k, v in aws_iam_role.irsa : k => v.arn }
+  description = "Map of IRSA role names to ARNs for AWS Load Balancer Controller, Karpenter, ExternalDNS, and Vault"
+  value = {
+    lb_controller = aws_iam_role.lb_controller.arn
+    karpenter     = aws_iam_role.karpenter.arn
+    external_dns  = aws_iam_role.external_dns.arn
+    vault         = aws_iam_role.vault.arn
+  }
 }
 
 output "ebs_csi_role_arn" {
-  value = aws_iam_role.ebs_csi.arn
+  description = "ARN of the EBS CSI driver IRSA role"
+  value       = aws_iam_role.ebs_csi.arn
 }
 
 output "karpenter_node_role_name" {

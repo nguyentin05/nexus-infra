@@ -4,99 +4,216 @@ locals {
     ManagedBy   = "terraform"
     Module      = "iam"
   })
+}
 
-  irsa_roles = {
-    lb_controller = {
-      namespace       = "kube-system"
-      service_account = "aws-load-balancer-controller"
-      policy_json     = file("${path.module}/policies/lb_controller.json")
+data "aws_caller_identity" "current" {}
+data "aws_region" "current" {}
+
+data "aws_iam_policy_document" "lb_controller_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
     }
-    karpenter = {
-      namespace       = "karpenter"
-      service_account = "karpenter"
-      policy_json = templatefile("${path.module}/policies/karpenter_controller.json.tpl", {
-        region                  = data.aws_region.current.name
-        account_id              = data.aws_caller_identity.current.account_id
-        cluster_name            = var.cluster_name
-        karpenter_node_role_arn = aws_iam_role.karpenter_node.arn
-      })
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
     }
-    external_dns = {
-      namespace       = "external-dns"
-      service_account = "external-dns"
-      policy_json     = file("${path.module}/policies/external_dns.json")
-    }
-    vault = {
-      namespace       = "vault"
-      service_account = "vault"
-      policy_json = templatefile("${path.module}/policies/vault_kms.json.tpl", {
-        kms_key_arn = var.vault_kms_key_arn
-      })
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
     }
   }
 }
 
-resource "aws_iam_policy" "irsa" {
-  for_each = local.irsa_roles
-
-  name_prefix = "${var.environment}-${each.key}-"
-  policy      = each.value.policy_json
+resource "aws_iam_policy" "lb_controller" {
+  name_prefix = "${var.environment}-lb_controller-"
+  policy      = file("${path.module}/policies/lb_controller.json")
   tags        = local.common_tags
 }
 
-resource "aws_iam_role" "irsa" {
-  for_each = local.irsa_roles
-
-  name_prefix = "${var.environment}-${each.key}-"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Federated = var.oidc_provider_arn
-      }
-      Action = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "${var.oidc_provider_url}:sub" = "system:serviceaccount:${each.value.namespace}:${each.value.service_account}"
-          "${var.oidc_provider_url}:aud" = "sts.amazonaws.com"
-        }
-      }
-    }]
-  })
+resource "aws_iam_role" "lb_controller" {
+  name_prefix        = "${var.environment}-lb_controller-"
+  assume_role_policy = data.aws_iam_policy_document.lb_controller_assume_role.json
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-${each.key}-irsa"
+    Name = "${var.environment}-lb_controller-irsa"
   })
 }
 
-resource "aws_iam_role_policy_attachment" "irsa" {
-  for_each = local.irsa_roles
+resource "aws_iam_role_policy_attachment" "lb_controller" {
+  role       = aws_iam_role.lb_controller.name
+  policy_arn = aws_iam_policy.lb_controller.arn
+}
 
-  role       = aws_iam_role.irsa[each.key].name
-  policy_arn = aws_iam_policy.irsa[each.key].arn
+data "aws_iam_policy_document" "karpenter_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:karpenter:karpenter"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "karpenter" {
+  name_prefix = "${var.environment}-karpenter-"
+  policy = templatefile("${path.module}/policies/karpenter_controller.json.tpl", {
+    region                  = data.aws_region.current.name
+    account_id              = data.aws_caller_identity.current.account_id
+    cluster_name            = var.cluster_name
+    karpenter_node_role_arn = aws_iam_role.karpenter_node.arn
+  })
+  tags = local.common_tags
+}
+
+resource "aws_iam_role" "karpenter" {
+  name_prefix        = "${var.environment}-karpenter-"
+  assume_role_policy = data.aws_iam_policy_document.karpenter_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-karpenter-irsa"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "karpenter" {
+  role       = aws_iam_role.karpenter.name
+  policy_arn = aws_iam_policy.karpenter.arn
+}
+
+data "aws_iam_policy_document" "external_dns_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:external-dns:external-dns"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "external_dns" {
+  name_prefix = "${var.environment}-external_dns-"
+  policy      = file("${path.module}/policies/external_dns.json")
+  tags        = local.common_tags
+}
+
+resource "aws_iam_role" "external_dns" {
+  name_prefix        = "${var.environment}-external_dns-"
+  assume_role_policy = data.aws_iam_policy_document.external_dns_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-external_dns-irsa"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "external_dns" {
+  role       = aws_iam_role.external_dns.name
+  policy_arn = aws_iam_policy.external_dns.arn
+}
+
+data "aws_iam_policy_document" "vault_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:vault:vault"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "vault" {
+  name_prefix = "${var.environment}-vault-"
+  policy = templatefile("${path.module}/policies/vault_kms.json.tpl", {
+    kms_key_arn = var.vault_kms_key_arn
+  })
+  tags = local.common_tags
+}
+
+resource "aws_iam_role" "vault" {
+  name_prefix        = "${var.environment}-vault-"
+  assume_role_policy = data.aws_iam_policy_document.vault_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-vault-irsa"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "vault" {
+  role       = aws_iam_role.vault.name
+  policy_arn = aws_iam_policy.vault.arn
+}
+
+data "aws_iam_policy_document" "ebs_csi_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
 }
 
 resource "aws_iam_role" "ebs_csi" {
-  name_prefix = "${var.environment}-ebs-csi-"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect = "Allow"
-      Principal = {
-        Federated = var.oidc_provider_arn
-      }
-      Action = "sts:AssumeRoleWithWebIdentity"
-      Condition = {
-        StringEquals = {
-          "${var.oidc_provider_url}:sub" = "system:serviceaccount:kube-system:ebs-csi-controller-sa"
-          "${var.oidc_provider_url}:aud" = "sts.amazonaws.com"
-        }
-      }
-    }]
-  })
+  name_prefix        = "${var.environment}-ebs-csi-"
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role.json
 
   tags = merge(local.common_tags, {
     Name = "${var.environment}-ebs-csi-irsa"
@@ -108,22 +225,21 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
+data "aws_iam_policy_document" "karpenter_node_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
 
 resource "aws_iam_role" "karpenter_node" {
-  name_prefix = "${var.environment}-karpenter-node-"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-
-  tags = local.common_tags
+  name_prefix        = "${var.environment}-karpenter-node-"
+  assume_role_policy = data.aws_iam_policy_document.karpenter_node_assume_role.json
+  tags               = local.common_tags
 }
 
 resource "aws_iam_role_policy_attachment" "karpenter_node_worker" {
