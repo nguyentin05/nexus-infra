@@ -26,15 +26,14 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-resource "aws_eks_cluster" "main" {
+resource "aws_eks_cluster" "this" {
   name     = "${var.environment}-capstone-eks"
   role_arn = aws_iam_role.cluster.arn
   version  = var.cluster_version
 
   vpc_config {
-    subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
+    subnet_ids              = var.private_subnet_ids
     endpoint_private_access = true
-    endpoint_public_access  = true
     public_access_cidrs     = var.public_access_cidrs
   }
 
@@ -48,13 +47,13 @@ resource "aws_eks_cluster" "main" {
 }
 
 data "tls_certificate" "eks" {
-  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
+  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
 
 resource "aws_iam_openid_connect_provider" "eks" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
+  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
 
   tags = local.common_tags
 }
@@ -90,7 +89,7 @@ resource "aws_iam_role_policy_attachment" "system_nodegroup_ecr" {
 }
 
 resource "aws_eks_node_group" "system" {
-  cluster_name    = aws_eks_cluster.main.name
+  cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.environment}-system"
   node_role_arn   = aws_iam_role.system_nodegroup.arn
   subnet_ids      = var.private_subnet_ids
@@ -124,32 +123,33 @@ resource "aws_eks_node_group" "system" {
 }
 
 resource "aws_eks_addon" "vpc_cni" {
-  cluster_name = aws_eks_cluster.main.name
+  cluster_name = aws_eks_cluster.this.name
   addon_name   = "vpc-cni"
   depends_on   = [aws_eks_node_group.system]
 }
 
 resource "aws_eks_addon" "coredns" {
-  cluster_name = aws_eks_cluster.main.name
+  cluster_name = aws_eks_cluster.this.name
   addon_name   = "coredns"
   depends_on   = [aws_eks_node_group.system]
 }
 
 resource "aws_eks_addon" "kube_proxy" {
-  cluster_name = aws_eks_cluster.main.name
+  cluster_name = aws_eks_cluster.this.name
   addon_name   = "kube-proxy"
   depends_on   = [aws_eks_node_group.system]
 }
+
 resource "aws_eks_access_entry" "admin" {
   count         = var.cluster_admin_principal_arn == null ? 0 : 1
-  cluster_name  = aws_eks_cluster.main.name
+  cluster_name  = aws_eks_cluster.this.name
   principal_arn = var.cluster_admin_principal_arn
   type          = "STANDARD"
 }
 
 resource "aws_eks_access_policy_association" "admin" {
   count         = var.cluster_admin_principal_arn == null ? 0 : 1
-  cluster_name  = aws_eks_cluster.main.name
+  cluster_name  = aws_eks_cluster.this.name
   principal_arn = var.cluster_admin_principal_arn
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
