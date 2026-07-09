@@ -100,3 +100,13 @@ module "karpenter" {
   instance_families = ["m5", "m6i", "c5"]
   instance_sizes    = ["large", "xlarge"]
 }
+
+module "waf" {
+  source = "../../modules/waf"
+
+  environment = "dev"
+  name        = "dev-nexus-public-alb-waf"
+  alb_name    = "dev-nexus-public-alb"
+
+  tags = { Project = "capstone" }
+}
