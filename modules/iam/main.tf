@@ -39,11 +39,11 @@ resource "aws_iam_policy" "lb_controller" {
 }
 
 resource "aws_iam_role" "lb_controller" {
-  name_prefix        = "${var.environment}-lb_controller-"
+  name               = "${var.environment}-aws-load-balancer-controller-irsa"
   assume_role_policy = data.aws_iam_policy_document.lb_controller_assume_role.json
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-lb_controller-irsa"
+    Name = "${var.environment}-aws-load-balancer-controller-irsa"
   })
 }
 
