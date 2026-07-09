@@ -75,6 +75,14 @@ module "iam" {
   tags = { Project = "capstone" }
 }
 
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = module.iam.ebs_csi_role_arn
+
+  depends_on = [module.eks, module.iam]
+}
+
 module "karpenter" {
   source = "../../modules/karpenter"
 

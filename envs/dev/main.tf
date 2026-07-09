@@ -57,7 +57,7 @@ module "eks" {
   private_subnet_ids          = module.network.private_subnet_ids
   public_subnet_ids           = module.network.public_subnet_ids
   system_node_instance_type   = "t3.small"
-  system_node_desired_size    = 2
+  system_node_desired_size    = 4
   public_access_cidrs         = ["0.0.0.0/0"]
   cluster_admin_principal_arn = "arn:aws:iam::065320271480:user/tin-developer"
 
@@ -74,6 +74,14 @@ module "iam" {
   vault_kms_key_arn = module.kms.key_arn
 
   tags = { Project = "capstone" }
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name             = module.eks.cluster_name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = module.iam.ebs_csi_role_arn
+
+  depends_on = [module.eks, module.iam]
 }
 
 module "karpenter" {
