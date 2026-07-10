@@ -2,6 +2,13 @@ provider "aws" {
   region = "ap-southeast-1"
 }
 
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
+provider "cloudflare" {}
+
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
@@ -22,6 +29,22 @@ provider "helm" {
       args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
+}
+
+module "acm" {
+  source = "../../modules/acm"
+
+  providers = {
+    aws        = aws.us_east_1
+    cloudflare = cloudflare
+  }
+
+  environment               = "dev"
+  domain_name               = "tin-nexus.com"
+  subject_alternative_names = ["*.tin-nexus.com"]
+  cloudflare_zone_name      = "tin-nexus.com"
+
+  tags = { Project = "capstone" }
 }
 
 module "network" {

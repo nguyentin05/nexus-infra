@@ -22,3 +22,13 @@ output "app_irsa_role_arns" {
   description = "Application IRSA role ARNs"
   value       = module.iam.app_irsa_role_arns
 }
+
+output "acm_certificate_arn" {
+  description = "Validated ACM certificate ARN for CloudFront"
+  value       = module.acm.certificate_arn
+}
+
+output "cloudflare_zone_id" {
+  description = "Cloudflare DNS zone ID"
+  value       = module.acm.cloudflare_zone_id
+}
