@@ -32,3 +32,18 @@ output "cloudflare_zone_id" {
   description = "Cloudflare DNS zone ID"
   value       = module.acm.cloudflare_zone_id
 }
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID"
+  value       = module.cloudfront.distribution_id
+}
+
+output "cloudfront_domain_name" {
+  description = "CloudFront distribution domain name"
+  value       = module.cloudfront.domain_name
+}
+
+output "cloudfront_hosted_zone_id" {
+  description = "CloudFront hosted zone ID"
+  value       = module.cloudfront.hosted_zone_id
+}
