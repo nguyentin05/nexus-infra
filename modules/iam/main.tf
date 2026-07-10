@@ -175,7 +175,7 @@ resource "aws_iam_policy" "vault" {
 }
 
 resource "aws_iam_role" "vault" {
-  name_prefix        = "${var.environment}-vault-"
+  name               = "${var.environment}-vault-irsa"
   assume_role_policy = data.aws_iam_policy_document.vault_assume_role.json
 
   tags = merge(local.common_tags, {
