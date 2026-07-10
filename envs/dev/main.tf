@@ -39,11 +39,41 @@ module "network" {
   tags = { Project = "capstone" }
 }
 
+module "sqs" {
+  source = "../../modules/sqs"
+
+  environment = "dev"
+  queue_name  = "dev-user-events"
+
+  tags = { Project = "capstone" }
+}
+
 module "kms" {
   source = "../../modules/kms"
 
   environment = "dev"
   key_alias   = "vault-unseal"
+
+  tags = { Project = "capstone" }
+}
+
+module "rds" {
+  source = "../../modules/rds"
+
+  environment                = "dev"
+  identifier                 = "dev-nexus-postgres"
+  database_name              = "nexus"
+  master_username            = "nexus_admin"
+  vpc_id                     = module.network.vpc_id
+  subnet_ids                 = module.network.private_subnet_ids
+  allowed_security_group_ids = [module.network.node_security_group_id]
+  instance_class             = "db.t3.micro"
+  allocated_storage          = 20
+  backup_retention_period    = 1
+  multi_az                   = false
+  deletion_protection        = false
+  skip_final_snapshot        = true
+  apply_immediately          = true
 
   tags = { Project = "capstone" }
 }
@@ -67,11 +97,12 @@ module "eks" {
 module "iam" {
   source = "../../modules/iam"
 
-  environment       = "dev"
-  cluster_name      = module.eks.cluster_name
-  oidc_provider_arn = module.eks.oidc_provider_arn
-  oidc_provider_url = module.eks.oidc_provider_url
-  vault_kms_key_arn = module.kms.key_arn
+  environment           = "dev"
+  cluster_name          = module.eks.cluster_name
+  oidc_provider_arn     = module.eks.oidc_provider_arn
+  oidc_provider_url     = module.eks.oidc_provider_url
+  vault_kms_key_arn     = module.kms.key_arn
+  user_events_queue_arn = module.sqs.queue_arn
 
   tags = { Project = "capstone" }
 }

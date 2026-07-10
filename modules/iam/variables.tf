@@ -26,3 +26,8 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "user_events_queue_arn" {
+  description = "ARN of the SQS queue used for user lifecycle events"
+  type        = string
+}
