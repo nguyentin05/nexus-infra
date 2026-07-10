@@ -164,3 +164,15 @@ module "waf" {
 
   tags = { Project = "capstone" }
 }
+
+module "cloudfront" {
+  source = "../../modules/cloudfront"
+
+  environment     = "dev"
+  name            = "dev-nexus-api-cdn"
+  alb_name        = "dev-nexus-public-alb"
+  aliases         = ["api.tin-nexus.com"]
+  certificate_arn = module.acm.certificate_arn
+
+  tags = { Project = "capstone" }
+}
