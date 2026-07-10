@@ -175,7 +175,7 @@ resource "aws_iam_policy" "vault" {
 }
 
 resource "aws_iam_role" "vault" {
-  name_prefix        = "${var.environment}-vault-"
+  name               = "${var.environment}-vault-irsa"
   assume_role_policy = data.aws_iam_policy_document.vault_assume_role.json
 
   tags = merge(local.common_tags, {
@@ -260,4 +260,120 @@ resource "aws_iam_role_policy_attachment" "karpenter_node_ecr" {
 resource "aws_iam_role_policy_attachment" "karpenter_node_ssm" {
   role       = aws_iam_role.karpenter_node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+locals {
+  app_service_accounts = {
+    auth_service    = "system:serviceaccount:apps:auth-service"
+    profile_service = "system:serviceaccount:apps:profile-service"
+  }
+}
+
+data "aws_iam_policy_document" "auth_service_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = [local.app_service_accounts.auth_service]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "profile_service_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = [local.app_service_accounts.profile_service]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "auth_service_sqs" {
+  statement {
+    actions = [
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:SendMessage",
+    ]
+    resources = [var.user_events_queue_arn]
+  }
+}
+
+data "aws_iam_policy_document" "profile_service_sqs" {
+  statement {
+    actions = [
+      "sqs:ChangeMessageVisibility",
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ReceiveMessage",
+    ]
+    resources = [var.user_events_queue_arn]
+  }
+}
+
+resource "aws_iam_policy" "auth_service_sqs" {
+  name   = "${var.environment}-auth-service-sqs"
+  policy = data.aws_iam_policy_document.auth_service_sqs.json
+  tags   = local.common_tags
+}
+
+resource "aws_iam_policy" "profile_service_sqs" {
+  name   = "${var.environment}-profile-service-sqs"
+  policy = data.aws_iam_policy_document.profile_service_sqs.json
+  tags   = local.common_tags
+}
+
+resource "aws_iam_role" "auth_service" {
+  name               = "${var.environment}-auth-service-irsa"
+  assume_role_policy = data.aws_iam_policy_document.auth_service_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-auth-service-irsa"
+  })
+}
+
+resource "aws_iam_role" "profile_service" {
+  name               = "${var.environment}-profile-service-irsa"
+  assume_role_policy = data.aws_iam_policy_document.profile_service_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-profile-service-irsa"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "auth_service_sqs" {
+  role       = aws_iam_role.auth_service.name
+  policy_arn = aws_iam_policy.auth_service_sqs.arn
+}
+
+resource "aws_iam_role_policy_attachment" "profile_service_sqs" {
+  role       = aws_iam_role.profile_service.name
+  policy_arn = aws_iam_policy.profile_service_sqs.arn
 }
