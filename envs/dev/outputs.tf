@@ -47,3 +47,8 @@ output "cloudfront_hosted_zone_id" {
   description = "CloudFront hosted zone ID"
   value       = module.cloudfront.hosted_zone_id
 }
+
+output "api_domain_name" {
+  description = "Public API domain name"
+  value       = cloudflare_dns_record.api.name
+}
