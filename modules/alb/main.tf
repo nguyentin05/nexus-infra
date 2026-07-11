@@ -6,17 +6,21 @@ locals {
   })
 }
 
+data "aws_ec2_managed_prefix_list" "cloudfront" {
+  name = "com.amazonaws.global.cloudfront.origin-facing"
+}
+
 resource "aws_security_group" "this" {
   name_prefix = "${var.environment}-public-alb-"
   description = "Security group for the public API ALB"
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "HTTP from internet or CloudFront"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "HTTP from CloudFront"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    prefix_list_ids = [data.aws_ec2_managed_prefix_list.cloudfront.id]
   }
 
   egress {
@@ -47,11 +51,12 @@ resource "aws_security_group_rule" "targets_from_alb" {
 }
 
 resource "aws_lb" "this" {
-  name               = var.name
-  load_balancer_type = "application"
-  internal           = false
-  security_groups    = [aws_security_group.this.id]
-  subnets            = var.public_subnet_ids
+  name                       = var.name
+  load_balancer_type         = "application"
+  internal                   = false
+  security_groups            = [aws_security_group.this.id]
+  subnets                    = var.public_subnet_ids
+  drop_invalid_header_fields = true
 
   tags = merge(local.common_tags, {
     Name = var.name
