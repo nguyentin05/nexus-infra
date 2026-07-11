@@ -27,18 +27,19 @@ resource "aws_acm_certificate" "this" {
 
 locals {
   cloudflare_zone_id = one(data.cloudflare_zones.this.result[*].id)
-  validation_records = {
-    for option in aws_acm_certificate.this.domain_validation_options :
-    option.resource_record_name => {
+  validation_options = distinct([
+    for option in aws_acm_certificate.this.domain_validation_options : {
       name    = trimsuffix(option.resource_record_name, ".")
       type    = option.resource_record_type
       content = trimsuffix(option.resource_record_value, ".")
     }
-  }
+  ])
 }
 
 resource "cloudflare_dns_record" "validation" {
-  for_each = local.validation_records
+  for_each = {
+    for option in local.validation_options : option.name => option
+  }
 
   zone_id = local.cloudflare_zone_id
   name    = each.value.name

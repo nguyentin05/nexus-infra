@@ -48,6 +48,27 @@ output "cloudfront_hosted_zone_id" {
   value       = module.cloudfront.hosted_zone_id
 }
 
+
+output "public_alb_dns_name" {
+  description = "Public API ALB DNS name"
+  value       = module.alb.dns_name
+}
+
+output "public_alb_arn" {
+  description = "Public API ALB ARN"
+  value       = module.alb.load_balancer_arn
+}
+
+output "envoy_target_group_name" {
+  description = "Stable Target Group name used by TargetGroupBinding"
+  value       = module.alb.target_group_name
+}
+
+output "envoy_target_group_arn" {
+  description = "Envoy Gateway target group ARN"
+  value       = module.alb.target_group_arn
+}
+
 output "api_domain_name" {
   description = "Public API domain name"
   value       = cloudflare_dns_record.api.name

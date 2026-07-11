@@ -7,10 +7,6 @@ locals {
   })
 }
 
-data "aws_lb" "origin" {
-  name = var.alb_name
-}
-
 resource "aws_cloudfront_distribution" "this" {
   enabled         = true
   is_ipv6_enabled = true
@@ -19,7 +15,7 @@ resource "aws_cloudfront_distribution" "this" {
   price_class     = "PriceClass_100"
 
   origin {
-    domain_name = data.aws_lb.origin.dns_name
+    domain_name = var.origin_domain_name
     origin_id   = local.origin_id
 
     custom_origin_config {

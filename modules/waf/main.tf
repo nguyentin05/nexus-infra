@@ -1,10 +1,6 @@
-data "aws_lb" "this" {
-  count = var.alb_name == null ? 0 : 1
-
-  name = var.alb_name
-}
-
 resource "aws_wafv2_web_acl" "this" {
+  count = var.enabled ? 1 : 0
+
   name        = var.name
   description = "${var.environment} public ALB WAF"
   scope       = "REGIONAL"
@@ -93,8 +89,8 @@ resource "aws_wafv2_web_acl" "this" {
 }
 
 resource "aws_wafv2_web_acl_association" "alb" {
-  count = var.alb_name == null ? 0 : 1
+  count = var.enabled && var.associate_alb && var.alb_arn != null && var.alb_arn != "" ? 1 : 0
 
-  resource_arn = data.aws_lb.this[0].arn
-  web_acl_arn  = aws_wafv2_web_acl.this.arn
+  resource_arn = var.alb_arn
+  web_acl_arn  = aws_wafv2_web_acl.this[0].arn
 }

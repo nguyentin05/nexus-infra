@@ -8,8 +8,8 @@ variable "name" {
   type        = string
 }
 
-variable "alb_name" {
-  description = "ALB name used as the CloudFront origin"
+variable "origin_domain_name" {
+  description = "Origin domain name used by CloudFront"
   type        = string
 }
 
