@@ -101,6 +101,19 @@ module "rds" {
   tags = { Project = "capstone" }
 }
 
+module "alb" {
+  source = "../../modules/alb"
+
+  environment              = "dev"
+  name                     = "dev-nexus-public-alb"
+  vpc_id                   = module.network.vpc_id
+  public_subnet_ids        = module.network.public_subnet_ids
+  target_security_group_id = module.eks.cluster_security_group_id
+  target_group_name        = "dev-envoy-gateway"
+
+  tags = { Project = "capstone" }
+}
+
 module "eks" {
   source = "../../modules/eks"
 
@@ -158,9 +171,10 @@ module "karpenter" {
 module "waf" {
   source = "../../modules/waf"
 
-  environment = "dev"
-  name        = "dev-nexus-public-alb-waf"
-  alb_name    = "dev-nexus-public-alb"
+  environment   = "dev"
+  name          = "dev-nexus-public-alb-waf"
+  alb_arn       = module.alb.load_balancer_arn
+  associate_alb = true
 
   tags = { Project = "capstone" }
 }
@@ -168,11 +182,11 @@ module "waf" {
 module "cloudfront" {
   source = "../../modules/cloudfront"
 
-  environment     = "dev"
-  name            = "dev-nexus-api-cdn"
-  alb_name        = "dev-nexus-public-alb"
-  aliases         = ["api.tin-nexus.com"]
-  certificate_arn = module.acm.certificate_arn
+  environment        = "dev"
+  name               = "dev-nexus-api-cdn"
+  origin_domain_name = module.alb.dns_name
+  aliases            = ["api.tin-nexus.com"]
+  certificate_arn    = module.acm.certificate_arn
 
   tags = { Project = "capstone" }
 }
