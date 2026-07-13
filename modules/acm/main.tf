@@ -36,24 +36,26 @@ resource "aws_acm_certificate" "this" {
 
 locals {
   cloudflare_zone_id = one(data.cloudflare_zones.this.result[*].id)
+  validation_options_by_domain = {
+    for option in aws_acm_certificate.this.domain_validation_options :
+    trimprefix(option.domain_name, "*.") => {
+      name    = trimsuffix(option.resource_record_name, ".")
+      type    = option.resource_record_type
+      content = trimsuffix(option.resource_record_value, ".")
+    }...
+  }
+  validation_options_map = {
+    for domain, options in local.validation_options_by_domain : domain => options[0]
+  }
 }
 
 resource "cloudflare_dns_record" "validation" {
   for_each = local.validation_domain_keys
 
   zone_id = local.cloudflare_zone_id
-  name = trimsuffix(element([
-    for option in aws_acm_certificate.this.domain_validation_options : option.resource_record_name
-    if trimprefix(option.domain_name, "*.") == each.key
-  ], 0), ".")
-  type = element([
-    for option in aws_acm_certificate.this.domain_validation_options : option.resource_record_type
-    if trimprefix(option.domain_name, "*.") == each.key
-  ], 0)
-  content = trimsuffix(element([
-    for option in aws_acm_certificate.this.domain_validation_options : option.resource_record_value
-    if trimprefix(option.domain_name, "*.") == each.key
-  ], 0), ".")
+  name    = local.validation_options_map[each.key].name
+  type    = local.validation_options_map[each.key].type
+  content = local.validation_options_map[each.key].content
   ttl     = 60
   proxied = false
 }

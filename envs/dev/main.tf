@@ -174,10 +174,12 @@ module "karpenter" {
 module "waf" {
   source = "../../modules/waf"
 
-  environment   = "dev"
-  name          = "dev-nexus-public-alb-waf"
-  alb_arn       = module.alb.load_balancer_arn
-  associate_alb = true
+  environment                                 = "dev"
+  name                                        = "dev-nexus-public-alb-waf"
+  alb_arn                                     = module.alb.load_balancer_arn
+  associate_alb                               = true
+  override_size_restrictions_body_to_count    = true
+  override_cross_site_scripting_body_to_count = true
 
   tags = { Project = "capstone" }
 }

@@ -43,19 +43,27 @@ resource "aws_wafv2_web_acl" "this" {
       managed_rule_group_statement {
         name        = "AWSManagedRulesCommonRuleSet"
         vendor_name = "AWS"
-        rule_action_override {
-          name = "SizeRestrictions_BODY"
+        dynamic "rule_action_override" {
+          for_each = var.override_size_restrictions_body_to_count ? [1] : []
 
-          action_to_use {
-            count {}
+          content {
+            name = "SizeRestrictions_BODY"
+
+            action_to_use {
+              count {}
+            }
           }
         }
 
-        rule_action_override {
-          name = "CrossSiteScripting_BODY"
+        dynamic "rule_action_override" {
+          for_each = var.override_cross_site_scripting_body_to_count ? [1] : []
 
-          action_to_use {
-            count {}
+          content {
+            name = "CrossSiteScripting_BODY"
+
+            action_to_use {
+              count {}
+            }
           }
         }
       }
