@@ -83,20 +83,23 @@ module "kms" {
 module "rds" {
   source = "../../modules/rds"
 
-  environment                = "dev"
-  identifier                 = "dev-nexus-postgres"
-  database_name              = "nexus"
-  master_username            = "nexus_admin"
-  vpc_id                     = module.network.vpc_id
-  subnet_ids                 = module.network.private_subnet_ids
-  allowed_security_group_ids = [module.network.node_security_group_id]
-  instance_class             = "db.t3.micro"
-  allocated_storage          = 20
-  backup_retention_period    = 1
-  multi_az                   = false
-  deletion_protection        = false
-  skip_final_snapshot        = true
-  apply_immediately          = true
+  environment     = "dev"
+  identifier      = "dev-nexus-postgres"
+  database_name   = "nexus"
+  master_username = "nexus_admin"
+  vpc_id          = module.network.vpc_id
+  subnet_ids      = module.network.private_subnet_ids
+  allowed_security_group_ids = [
+    module.network.node_security_group_id,
+    module.eks.cluster_security_group_id,
+  ]
+  instance_class          = "db.t3.micro"
+  allocated_storage       = 20
+  backup_retention_period = 1
+  multi_az                = false
+  deletion_protection     = false
+  skip_final_snapshot     = true
+  apply_immediately       = true
 
   tags = { Project = "capstone" }
 }
