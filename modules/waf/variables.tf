@@ -32,3 +32,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "override_size_restrictions_body_to_count" {
+  description = "Whether to count, instead of block, AWS CommonRuleSet SizeRestrictions_BODY matches"
+  type        = bool
+  default     = false
+}
+
+variable "override_cross_site_scripting_body_to_count" {
+  description = "Whether to count, instead of block, AWS CommonRuleSet CrossSiteScripting_BODY matches"
+  type        = bool
+  default     = false
+}

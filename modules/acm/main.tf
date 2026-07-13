@@ -4,6 +4,15 @@ locals {
     ManagedBy   = "terraform"
     Module      = "acm"
   })
+
+  certificate_domains = distinct(concat([var.domain_name], var.subject_alternative_names))
+
+  # ACM can return the same DNS validation record for an apex domain and its
+  # wildcard SAN. Use input-derived keys so Terraform can plan the records before
+  # ACM returns validation_options, while avoiding duplicate Cloudflare records.
+  validation_domain_keys = toset([
+    for domain in local.certificate_domains : trimprefix(domain, "*.")
+  ])
 }
 
 data "cloudflare_zones" "this" {
@@ -27,24 +36,26 @@ resource "aws_acm_certificate" "this" {
 
 locals {
   cloudflare_zone_id = one(data.cloudflare_zones.this.result[*].id)
-  validation_options = distinct([
-    for option in aws_acm_certificate.this.domain_validation_options : {
+  validation_options_by_domain = {
+    for option in aws_acm_certificate.this.domain_validation_options :
+    trimprefix(option.domain_name, "*.") => {
       name    = trimsuffix(option.resource_record_name, ".")
       type    = option.resource_record_type
       content = trimsuffix(option.resource_record_value, ".")
-    }
-  ])
+    }...
+  }
+  validation_options_map = {
+    for domain, options in local.validation_options_by_domain : domain => options[0]
+  }
 }
 
 resource "cloudflare_dns_record" "validation" {
-  for_each = {
-    for option in local.validation_options : option.name => option
-  }
+  for_each = local.validation_domain_keys
 
   zone_id = local.cloudflare_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  content = each.value.content
+  name    = local.validation_options_map[each.key].name
+  type    = local.validation_options_map[each.key].type
+  content = local.validation_options_map[each.key].content
   ttl     = 60
   proxied = false
 }
