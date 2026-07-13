@@ -1,5 +1,8 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
+data "tls_certificate" "github_actions" {
+  url = "https://token.actions.githubusercontent.com"
+}
 
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
@@ -7,7 +10,7 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
   client_id_list = ["sts.amazonaws.com"]
 
   thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    data.tls_certificate.github_actions.certificates[0].sha1_fingerprint,
   ]
 
   tags = {
