@@ -120,15 +120,17 @@ module "alb" {
 module "eks" {
   source = "../../modules/eks"
 
-  environment                 = "dev"
-  cluster_version             = "1.36"
-  vpc_id                      = module.network.vpc_id
-  private_subnet_ids          = module.network.private_subnet_ids
-  public_subnet_ids           = module.network.public_subnet_ids
-  system_node_instance_type   = "t3.small"
-  system_node_desired_size    = 4
-  public_access_cidrs         = ["0.0.0.0/0"]
-  cluster_admin_principal_arn = "arn:aws:iam::065320271480:user/tin-developer"
+  environment                      = "dev"
+  cluster_version                  = "1.36"
+  vpc_id                           = module.network.vpc_id
+  private_subnet_ids               = module.network.private_subnet_ids
+  public_subnet_ids                = module.network.public_subnet_ids
+  system_node_instance_type        = "t3.small"
+  system_node_desired_size         = 5
+  system_node_max_pods             = 30
+  enable_vpc_cni_prefix_delegation = true
+  public_access_cidrs              = ["0.0.0.0/0"]
+  cluster_admin_principal_arn      = "arn:aws:iam::065320271480:user/tin-developer"
 
   tags = { Project = "capstone" }
 }

@@ -4,6 +4,28 @@ locals {
     ManagedBy   = "terraform"
     Module      = "eks"
   })
+
+  system_node_user_data = var.system_node_max_pods == null ? null : <<-EOT
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+--BOUNDARY
+Content-Type: application/node.eks.aws
+
+---
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: ${aws_eks_cluster.this.name}
+    apiServerEndpoint: ${aws_eks_cluster.this.endpoint}
+    certificateAuthority: ${aws_eks_cluster.this.certificate_authority[0].data}
+    cidr: ${aws_eks_cluster.this.kubernetes_network_config[0].service_ipv4_cidr}
+  kubelet:
+    config:
+      maxPods: ${var.system_node_max_pods}
+--BOUNDARY--
+EOT
 }
 
 resource "aws_iam_role" "cluster" {
@@ -83,6 +105,28 @@ resource "aws_iam_role_policy_attachment" "system_nodegroup_cni" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
+data "aws_ssm_parameter" "eks_al2023_x86_64_ami" {
+  count = var.system_node_max_pods == null ? 0 : 1
+  name  = "/aws/service/eks/optimized-ami/${var.cluster_version}/amazon-linux-2023/x86_64/standard/recommended/image_id"
+}
+
+resource "aws_launch_template" "system_nodegroup" {
+  count = var.system_node_max_pods == null ? 0 : 1
+
+  name_prefix            = "${var.environment}-eks-system-node-"
+  image_id               = data.aws_ssm_parameter.eks_al2023_x86_64_ami[0].value
+  user_data              = base64encode(local.system_node_user_data)
+  update_default_version = true
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
+  tags = local.common_tags
+}
+
 resource "aws_iam_role_policy_attachment" "system_nodegroup_ecr" {
   role       = aws_iam_role.system_nodegroup.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
@@ -96,6 +140,15 @@ resource "aws_eks_node_group" "system" {
 
   instance_types = [var.system_node_instance_type]
   capacity_type  = "ON_DEMAND"
+
+  dynamic "launch_template" {
+    for_each = var.system_node_max_pods == null ? [] : [aws_launch_template.system_nodegroup[0]]
+
+    content {
+      id      = launch_template.value.id
+      version = launch_template.value.latest_version
+    }
+  }
 
   scaling_config {
     desired_size = var.system_node_desired_size
@@ -125,7 +178,18 @@ resource "aws_eks_node_group" "system" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.this.name
   addon_name   = "vpc-cni"
-  depends_on   = [aws_eks_node_group.system]
+
+  configuration_values = var.enable_vpc_cni_prefix_delegation ? jsonencode({
+    env = {
+      ENABLE_PREFIX_DELEGATION = "true"
+      WARM_PREFIX_TARGET       = tostring(var.vpc_cni_warm_prefix_target)
+    }
+  }) : null
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+
+  depends_on = [aws_eks_node_group.system]
 }
 
 resource "aws_eks_addon" "coredns" {

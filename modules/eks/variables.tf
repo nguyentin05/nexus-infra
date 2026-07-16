@@ -44,3 +44,22 @@ variable "cluster_admin_principal_arn" {
   type        = string
   default     = null
 }
+
+
+variable "system_node_max_pods" {
+  description = "Optional kubelet maxPods override for the system managed node group. Set with VPC CNI prefix delegation."
+  type        = number
+  default     = null
+}
+
+variable "enable_vpc_cni_prefix_delegation" {
+  description = "Enable Amazon VPC CNI prefix delegation to increase pod IP capacity per node."
+  type        = bool
+  default     = false
+}
+
+variable "vpc_cni_warm_prefix_target" {
+  description = "Number of extra /28 prefixes the VPC CNI keeps warm when prefix delegation is enabled."
+  type        = number
+  default     = 1
+}
