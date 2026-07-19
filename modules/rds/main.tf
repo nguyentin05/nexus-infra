@@ -41,10 +41,41 @@ resource "aws_security_group" "this" {
   })
 }
 
+resource "aws_db_parameter_group" "this" {
+  name   = "${var.identifier}-${var.parameter_group_family}"
+  family = var.parameter_group_family
+
+  parameter {
+    name         = "log_min_duration_statement"
+    value        = "500"
+    apply_method = "immediate"
+  }
+
+  parameter {
+    name         = "log_lock_waits"
+    value        = "1"
+    apply_method = "immediate"
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "${var.identifier}-parameters"
+  })
+}
+
+resource "aws_cloudwatch_log_group" "postgresql" {
+  name              = "/aws/rds/instance/${var.identifier}/postgresql"
+  retention_in_days = var.log_retention_days
+
+  tags = merge(local.common_tags, {
+    Name = "${var.identifier}-postgresql"
+  })
+}
+
 resource "aws_db_instance" "this" {
   identifier = var.identifier
 
   engine         = "postgres"
+  engine_version = var.engine_version
   instance_class = var.instance_class
 
   allocated_storage     = var.allocated_storage
@@ -57,10 +88,12 @@ resource "aws_db_instance" "this" {
 
   manage_master_user_password = true
 
-  db_subnet_group_name   = aws_db_subnet_group.this.name
-  vpc_security_group_ids = [aws_security_group.this.id]
-  publicly_accessible    = false
-  multi_az               = var.multi_az
+  db_subnet_group_name            = aws_db_subnet_group.this.name
+  parameter_group_name            = aws_db_parameter_group.this.name
+  vpc_security_group_ids          = [aws_security_group.this.id]
+  enabled_cloudwatch_logs_exports = ["postgresql"]
+  publicly_accessible             = false
+  multi_az                        = var.multi_az
 
   backup_retention_period = var.backup_retention_period
   deletion_protection     = var.deletion_protection
@@ -72,4 +105,6 @@ resource "aws_db_instance" "this" {
   tags = merge(local.common_tags, {
     Name = var.identifier
   })
+
+  depends_on = [aws_cloudwatch_log_group.postgresql]
 }
