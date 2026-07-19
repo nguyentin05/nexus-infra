@@ -39,6 +39,18 @@ variable "instance_class" {
   default     = "db.t3.micro"
 }
 
+variable "engine_version" {
+  description = "PostgreSQL major version for the RDS instance"
+  type        = string
+  default     = "18"
+}
+
+variable "parameter_group_family" {
+  description = "RDS PostgreSQL parameter group family matching engine_version"
+  type        = string
+  default     = "postgres18"
+}
+
 variable "allocated_storage" {
   description = "Allocated storage in GiB"
   type        = number
@@ -49,6 +61,12 @@ variable "backup_retention_period" {
   description = "Backup retention period in days"
   type        = number
   default     = 1
+}
+
+variable "log_retention_days" {
+  description = "CloudWatch retention for exported PostgreSQL logs"
+  type        = number
+  default     = 7
 }
 
 variable "multi_az" {

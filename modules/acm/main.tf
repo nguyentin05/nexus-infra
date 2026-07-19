@@ -7,9 +7,6 @@ locals {
 
   certificate_domains = distinct(concat([var.domain_name], var.subject_alternative_names))
 
-  # ACM can return the same DNS validation record for an apex domain and its
-  # wildcard SAN. Use input-derived keys so Terraform can plan the records before
-  # ACM returns validation_options, while avoiding duplicate Cloudflare records.
   validation_domain_keys = toset([
     for domain in local.certificate_domains : trimprefix(domain, "*.")
   ])

@@ -266,6 +266,71 @@ locals {
     auth_service    = "system:serviceaccount:apps:auth-service"
     profile_service = "system:serviceaccount:apps:profile-service"
   }
+
+  grafana_service_account = "system:serviceaccount:monitoring:monitoring-grafana"
+}
+
+data "aws_iam_policy_document" "grafana_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = [local.grafana_service_account]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "grafana_cloudwatch" {
+  statement {
+    actions = [
+      "cloudwatch:DescribeAlarmHistory",
+      "cloudwatch:DescribeAlarms",
+      "cloudwatch:DescribeAlarmsForMetric",
+      "cloudwatch:GetMetricData",
+      "cloudwatch:GetMetricStatistics",
+      "cloudwatch:GetInsightRuleReport",
+      "cloudwatch:ListMetrics",
+      "ec2:DescribeInstances",
+      "ec2:DescribeRegions",
+      "ec2:DescribeTags",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams",
+      "logs:GetLogEvents",
+      "logs:GetLogGroupFields",
+      "logs:GetQueryResults",
+      "logs:StartQuery",
+      "logs:StopQuery",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role" "grafana" {
+  name               = "${var.environment}-grafana-cloudwatch-irsa"
+  assume_role_policy = data.aws_iam_policy_document.grafana_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-grafana-cloudwatch-irsa"
+  })
+}
+
+resource "aws_iam_role_policy" "grafana_cloudwatch" {
+  name   = "cloudwatch-read"
+  role   = aws_iam_role.grafana.name
+  policy = data.aws_iam_policy_document.grafana_cloudwatch.json
 }
 
 data "aws_iam_policy_document" "auth_service_assume_role" {
