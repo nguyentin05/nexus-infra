@@ -49,6 +49,7 @@ resource "aws_subnet" "private" {
     Name                                        = "${var.environment}-private-${var.azs[count.index]}"
     "kubernetes.io/role/internal-elb"           = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
+    "karpenter.sh/discovery"                    = var.cluster_name
   })
 }
 
@@ -132,7 +133,8 @@ resource "aws_security_group" "node_sg" {
   }
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-node-sg"
+    Name                     = "${var.environment}-node-sg"
+    "karpenter.sh/discovery" = var.cluster_name
   })
 
   lifecycle {
