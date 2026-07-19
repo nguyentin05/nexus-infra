@@ -31,6 +31,18 @@ provider "helm" {
   }
 }
 
+provider "kubectl" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
+  load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+  }
+}
+
 module "acm" {
   source = "../../modules/acm"
 
@@ -93,9 +105,12 @@ module "rds" {
     module.network.node_security_group_id,
     module.eks.cluster_security_group_id,
   ]
+  engine_version          = "18"
+  parameter_group_family  = "postgres18"
   instance_class          = "db.t3.micro"
   allocated_storage       = 20
   backup_retention_period = 1
+  log_retention_days      = 7
   multi_az                = false
   deletion_protection     = false
   skip_final_snapshot     = true
@@ -161,16 +176,14 @@ module "karpenter" {
 
   depends_on = [module.eks]
 
-  environment              = "dev"
   cluster_name             = module.eks.cluster_name
   cluster_endpoint         = module.eks.cluster_endpoint
   karpenter_irsa_role_arn  = module.iam.irsa_role_arns["karpenter"]
+  karpenter_irsa_role_name = module.iam.karpenter_controller_role_name
   karpenter_node_role_name = module.iam.karpenter_node_role_name
-  private_subnet_ids       = module.network.private_subnet_ids
-  node_security_group_id   = module.network.node_security_group_id
+  create_node_pool         = true
 
-  instance_families = ["m5", "m6i", "c5"]
-  instance_sizes    = ["large", "xlarge"]
+  tags = { Project = "capstone" }
 }
 
 module "waf" {
