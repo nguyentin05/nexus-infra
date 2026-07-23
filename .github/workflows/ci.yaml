@@ -1,0 +1,116 @@
+name: Terraform CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.14.3
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v6.3.0
+        with:
+          tflint_version: v0.64.0
+          cache: true
+          tflint_config_path: .tflint.hcl
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive
+
+      - name: Initialize TFLint
+        run: tflint --init
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint Terraform
+        run: tflint -r -f compact
+
+  checkov:
+    name: Scan IaC with Checkov
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Checkov GitHub Action
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          quiet: true
+          soft_fail: false
+          framework: terraform
+          output_format: cli
+
+  trivy:
+    name: Scan IaC with Trivy
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Aqua Security Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          hide-progress: true
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+      - name: Upload SARIF file
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-iac
+
+  summary:
+    name: CI summary
+    if: always()
+    needs: [validate, checkov, trivy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write pipeline summary
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          CHECKOV_RESULT: ${{ needs.checkov.result }}
+          TRIVY_RESULT: ${{ needs.trivy.result }}
+        run: |
+          {
+            echo "## Terraform CI"
+            echo
+            echo "| Gate | Result |"
+            echo "| --- | --- |"
+            echo "| Format and TFLint | $VALIDATE_RESULT |"
+            echo "| Checkov IaC scan | $CHECKOV_RESULT |"
+            echo "| Trivy IaC scan | $TRIVY_RESULT |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          test "$VALIDATE_RESULT" = success
+          test "$CHECKOV_RESULT" = success
+          test "$TRIVY_RESULT" = success
