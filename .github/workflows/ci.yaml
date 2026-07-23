@@ -46,7 +46,6 @@ jobs:
 
   checkov:
     name: Scan IaC with Checkov
-    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -63,7 +62,6 @@ jobs:
 
   trivy:
     name: Scan IaC with Trivy
-    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
