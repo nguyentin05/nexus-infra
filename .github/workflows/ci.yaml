@@ -42,7 +42,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint Terraform
-        run: tflint -r -f compact
+        run: tflint --recursive --format compact
 
   checkov:
     name: Scan IaC with Checkov
