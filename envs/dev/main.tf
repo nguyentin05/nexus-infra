@@ -82,6 +82,19 @@ module "sqs" {
   tags = { Project = "capstone" }
 }
 
+module "ecr" {
+  source = "../../modules/ecr"
+
+  environment = "dev"
+  repository_names = [
+    "nexus-auth-service",
+    "nexus-profile-service",
+  ]
+  force_delete = true
+
+  tags = { Project = "capstone" }
+}
+
 module "kms" {
   source = "../../modules/kms"
 

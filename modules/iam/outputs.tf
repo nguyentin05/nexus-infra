@@ -5,6 +5,7 @@ output "irsa_role_arns" {
     karpenter       = aws_iam_role.karpenter.arn
     external_dns    = aws_iam_role.external_dns.arn
     vault           = aws_iam_role.vault.arn
+    kyverno         = aws_iam_role.kyverno.arn
     grafana         = aws_iam_role.grafana.arn
     auth_service    = aws_iam_role.auth_service.arn
     profile_service = aws_iam_role.profile_service.arn

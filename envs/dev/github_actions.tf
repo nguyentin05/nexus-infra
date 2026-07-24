@@ -82,3 +82,77 @@ output "github_actions_role_arn" {
   description = "IAM role ARN used by nexus-gitops GitHub Actions workflows"
   value       = aws_iam_role.github_actions_gitops.arn
 }
+
+data "aws_iam_policy_document" "github_actions_app_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github_actions.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:nguyentin05/nexus-app:ref:refs/heads/main"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "github_actions_app_ecr" {
+  statement {
+    sid = "ReadEcr"
+    actions = [
+      "ecr:DescribeRepositories",
+      "ecr:GetAuthorizationToken",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid = "PublishAppImages"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:CompleteLayerUpload",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+    ]
+    resources = [
+      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-auth-service",
+      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-profile-service",
+    ]
+  }
+}
+
+resource "aws_iam_role" "github_actions_app" {
+  name               = "dev-github-actions-app-release"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_app_assume_role.json
+
+  tags = {
+    Project     = "capstone"
+    Environment = "dev"
+    ManagedBy   = "terraform"
+    Module      = "github-actions"
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_app_ecr" {
+  name   = "publish-app-images"
+  role   = aws_iam_role.github_actions_app.id
+  policy = data.aws_iam_policy_document.github_actions_app_ecr.json
+}
+
+output "github_actions_app_role_arn" {
+  description = "IAM role ARN used by nexus-app to publish signed ECR images"
+  value       = aws_iam_role.github_actions_app.arn
+}

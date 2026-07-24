@@ -113,7 +113,7 @@ resource "aws_iam_role_policy" "karpenter_interruption" {
 resource "aws_cloudwatch_event_rule" "this" {
   for_each = local.interruption_events
 
-  name_prefix   = "${var.cluster_name}-karpenter-${each.key}-"
+  name          = substr("${var.cluster_name}-karpenter-${each.value.name}", 0, 64)
   description   = each.value.description
   event_pattern = jsonencode(each.value.event_pattern)
 
@@ -265,7 +265,7 @@ resource "kubectl_manifest" "node_pool" {
               operator: In
               values: ${jsonencode(var.capacity_types)}
       disruption:
-        consolidationPolicy: Balanced
+        consolidationPolicy: WhenEmptyOrUnderutilized
         consolidateAfter: 1m
         budgets:
           - nodes: "10%"

@@ -225,6 +225,66 @@ resource "aws_iam_role_policy_attachment" "ebs_csi" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 
+data "aws_iam_policy_document" "kyverno_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values = [
+        "system:serviceaccount:kyverno:kyverno-admission-controller",
+        "system:serviceaccount:kyverno:kyverno-background-controller",
+      ]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "kyverno_ecr" {
+  statement {
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    actions = [
+      "ecr:BatchGetImage",
+      "ecr:DescribeImages",
+      "ecr:GetDownloadUrlForLayer",
+    ]
+    resources = [
+      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-auth-service",
+      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-profile-service",
+    ]
+  }
+}
+
+resource "aws_iam_role" "kyverno" {
+  name               = "${var.environment}-kyverno-image-verifier-irsa"
+  assume_role_policy = data.aws_iam_policy_document.kyverno_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-kyverno-image-verifier-irsa"
+  })
+}
+
+resource "aws_iam_role_policy" "kyverno_ecr" {
+  name   = "ecr-signature-read"
+  role   = aws_iam_role.kyverno.name
+  policy = data.aws_iam_policy_document.kyverno_ecr.json
+}
+
 data "aws_iam_policy_document" "karpenter_node_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
