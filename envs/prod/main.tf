@@ -27,7 +27,6 @@ provider "helm" {
 module "network" {
   source = "../../modules/network"
 
-  name                 = "prod-capstone"
   environment          = "prod"
   vpc_cidr             = "10.1.0.0/16"
   azs                  = ["ap-southeast-1a", "ap-southeast-1b"]
@@ -60,20 +59,21 @@ module "kms" {
 module "rds" {
   source = "../../modules/rds"
 
-  environment                = "prod"
-  identifier                 = "prod-nexus-postgres"
-  database_name              = "nexus"
-  master_username            = "nexus_admin"
-  vpc_id                     = module.network.vpc_id
-  subnet_ids                 = module.network.private_subnet_ids
-  allowed_security_group_ids = [module.network.node_security_group_id]
-  instance_class             = "db.m6g.large"
-  allocated_storage          = 20
-  backup_retention_period    = 7
-  multi_az                   = true
-  deletion_protection        = true
-  skip_final_snapshot        = false
-  apply_immediately          = false
+  environment                     = "prod"
+  identifier                      = "prod-nexus-postgres"
+  database_name                   = "nexus"
+  master_username                 = "nexus_admin"
+  performance_insights_kms_key_id = module.kms.key_arn
+  vpc_id                          = module.network.vpc_id
+  subnet_ids                      = module.network.private_subnet_ids
+  allowed_security_group_ids      = [module.network.node_security_group_id]
+  instance_class                  = "db.m6g.large"
+  allocated_storage               = 20
+  backup_retention_period         = 7
+  multi_az                        = true
+  deletion_protection             = true
+  skip_final_snapshot             = false
+  apply_immediately               = false
 
   tags = { Project = "capstone" }
 }
@@ -83,9 +83,7 @@ module "eks" {
 
   environment               = "prod"
   cluster_version           = "1.36"
-  vpc_id                    = module.network.vpc_id
   private_subnet_ids        = module.network.private_subnet_ids
-  public_subnet_ids         = module.network.public_subnet_ids
   system_node_instance_type = "t3.small"
   system_node_desired_size  = 2
   public_access_cidrs       = var.public_access_cidrs

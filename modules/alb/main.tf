@@ -24,11 +24,11 @@ resource "aws_security_group" "this" {
   }
 
   egress {
-    description = "All outbound traffic"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "Envoy Gateway targets"
+    from_port       = var.target_port
+    to_port         = var.target_port
+    protocol        = "tcp"
+    security_groups = [var.target_security_group_id]
   }
 
   tags = merge(local.common_tags, {
@@ -50,7 +50,12 @@ resource "aws_security_group_rule" "targets_from_alb" {
   protocol                 = "tcp"
 }
 
+#trivy:ignore:AVD-AWS-0053
 resource "aws_lb" "this" {
+  #checkov:skip=CKV_AWS_91:Access logs require a dedicated S3 logging boundary and are deferred for the ephemeral environment.
+  #checkov:skip=CKV_AWS_150:Deletion protection would prevent the documented destroy/recreate development workflow.
+  #checkov:skip=CKV2_AWS_28:The ALB is associated with the regional Web ACL by the separate WAF module.
+  #checkov:skip=CKV2_AWS_20:Viewer HTTP is redirected by CloudFront; the ALB listener is origin-only and prefix-list restricted.
   name                       = var.name
   load_balancer_type         = "application"
   internal                   = false
@@ -64,6 +69,7 @@ resource "aws_lb" "this" {
 }
 
 resource "aws_lb_target_group" "envoy" {
+  #checkov:skip=CKV_AWS_378:TLS terminates at CloudFront; this private VPC hop terminates at Envoy over HTTP.
   name        = var.target_group_name
   port        = var.target_port
   protocol    = "HTTP"
@@ -86,7 +92,11 @@ resource "aws_lb_target_group" "envoy" {
   })
 }
 
+#trivy:ignore:AVD-AWS-0054
 resource "aws_lb_listener" "http" {
+  #checkov:skip=CKV_AWS_2:TLS terminates at CloudFront and only CloudFront prefix-list traffic can reach this listener.
+  #checkov:skip=CKV_AWS_103:This listener is intentionally HTTP behind the TLS-terminating CloudFront distribution.
+  #checkov:skip=CKV2_AWS_20:Viewer HTTP is redirected to HTTPS by CloudFront before requests reach the ALB.
   load_balancer_arn = aws_lb.this.arn
   port              = 80
   protocol          = "HTTP"

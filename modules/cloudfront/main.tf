@@ -7,7 +7,14 @@ locals {
   })
 }
 
+#trivy:ignore:AVD-AWS-0011
 resource "aws_cloudfront_distribution" "this" {
+  #checkov:skip=CKV_AWS_68:The regional WAF is attached to the ALB origin to keep one inspection layer.
+  #checkov:skip=CKV_AWS_86:CloudFront access logging requires an S3 logging boundary and is deferred.
+  #checkov:skip=CKV_AWS_374:The public API is intentionally available globally.
+  #checkov:skip=CKV_AWS_305:This is an API distribution and has no root document.
+  #checkov:skip=CKV_AWS_310:The current platform is single-region and has no valid failover origin.
+  #checkov:skip=CKV2_AWS_47:The ALB WAF uses AWS managed Common and KnownBadInputs rule groups.
   enabled         = true
   is_ipv6_enabled = true
   comment         = var.name
@@ -27,14 +34,15 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   default_cache_behavior {
-    target_origin_id       = local.origin_id
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-    min_ttl                = 0
-    default_ttl            = 0
-    max_ttl                = 0
+    target_origin_id           = local.origin_id
+    viewer_protocol_policy     = "redirect-to-https"
+    allowed_methods            = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods             = ["GET", "HEAD"]
+    compress                   = true
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.security_headers.id
+    min_ttl                    = 0
+    default_ttl                = 0
+    max_ttl                    = 0
 
     forwarded_values {
       query_string = true
@@ -61,4 +69,8 @@ resource "aws_cloudfront_distribution" "this" {
   tags = merge(local.common_tags, {
     Name = var.name
   })
+}
+
+data "aws_cloudfront_response_headers_policy" "security_headers" {
+  name = "Managed-SecurityHeadersPolicy"
 }
