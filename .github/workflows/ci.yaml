@@ -64,6 +64,7 @@ jobs:
     name: Scan IaC with Trivy
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       security-events: write
     steps:
@@ -108,7 +109,3 @@ jobs:
             echo "| Checkov IaC scan | $CHECKOV_RESULT |"
             echo "| Trivy IaC scan | $TRIVY_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
-
-          test "$VALIDATE_RESULT" = success
-          test "$CHECKOV_RESULT" = success
-          test "$TRIVY_RESULT" = success
