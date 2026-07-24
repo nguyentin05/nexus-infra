@@ -14,7 +14,8 @@ resource "aws_ecr_repository" "this" {
   force_delete         = var.force_delete
 
   encryption_configuration {
-    encryption_type = "AES256"
+    encryption_type = "KMS"
+    kms_key         = var.kms_key_arn
   }
 
   image_scanning_configuration {

@@ -14,6 +14,11 @@ variable "force_delete" {
   default     = false
 }
 
+variable "kms_key_arn" {
+  description = "Customer-managed KMS key ARN used to encrypt repositories"
+  type        = string
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)

@@ -108,11 +108,8 @@ data "aws_iam_policy_document" "github_actions_app_assume_role" {
 
 data "aws_iam_policy_document" "github_actions_app_ecr" {
   statement {
-    sid = "ReadEcr"
-    actions = [
-      "ecr:DescribeRepositories",
-      "ecr:GetAuthorizationToken",
-    ]
+    sid       = "GetAuthorizationToken"
+    actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
 

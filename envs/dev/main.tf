@@ -91,6 +91,7 @@ module "ecr" {
     "nexus-profile-service",
   ]
   force_delete = true
+  kms_key_arn  = module.kms.key_arn
 
   tags = { Project = "capstone" }
 }
