@@ -48,14 +48,23 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+#trivy:ignore:AVD-AWS-0039
+#trivy:ignore:AVD-AWS-0040
+#trivy:ignore:AVD-AWS-0041
 resource "aws_eks_cluster" "this" {
-  name     = "${var.environment}-capstone-eks"
-  role_arn = aws_iam_role.cluster.arn
-  version  = var.cluster_version
+  #checkov:skip=CKV_AWS_339:Kubernetes version is selected from the currently supported EKS versions.
+  #checkov:skip=CKV_AWS_58:EKS 1.28 and later encrypt all Kubernetes API data by default with an AWS-owned KMS key.
+  #checkov:skip=CKV_AWS_38:Endpoint CIDRs are environment inputs; development access is intentionally broad and temporary.
+  #checkov:skip=CKV_AWS_39:Public access is required by the current local bootstrap and CI execution model.
+  name                      = "${var.environment}-capstone-eks"
+  role_arn                  = aws_iam_role.cluster.arn
+  version                   = var.cluster_version
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
     endpoint_private_access = true
+    endpoint_public_access  = true
     public_access_cidrs     = var.public_access_cidrs
   }
 
@@ -121,7 +130,7 @@ resource "aws_launch_template" "system_nodegroup" {
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
-    http_put_response_hop_limit = 2
+    http_put_response_hop_limit = 1
   }
 
   tags = local.common_tags

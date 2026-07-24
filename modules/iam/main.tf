@@ -294,6 +294,7 @@ data "aws_iam_policy_document" "grafana_assume_role" {
 }
 
 data "aws_iam_policy_document" "grafana_cloudwatch" {
+  #checkov:skip=CKV_AWS_356:CloudWatch metric and EC2 Describe APIs do not support resource-level permissions.
   statement {
     actions = [
       "cloudwatch:DescribeAlarmHistory",

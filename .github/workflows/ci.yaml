@@ -54,10 +54,7 @@ jobs:
       - name: Checkov GitHub Action
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: .
-          quiet: true
-          soft_fail: false
-          framework: terraform
+          config_file: .checkov.yaml
           output_format: cli
 
   trivy:

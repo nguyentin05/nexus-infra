@@ -1,4 +1,20 @@
+resource "aws_cloudwatch_log_group" "this" {
+  count = var.enabled ? 1 : 0
+
+  #checkov:skip=CKV_AWS_158:CloudWatch encrypts logs at rest by default; a dedicated WAF logging key is deferred.
+  #checkov:skip=CKV_AWS_338:Thirty days is sufficient for the current development and capstone audit window.
+  name              = "aws-waf-logs-${var.name}"
+  retention_in_days = 30
+
+  tags = merge(var.tags, {
+    Environment = var.environment
+    ManagedBy   = "terraform"
+    Module      = "waf"
+  })
+}
+
 resource "aws_wafv2_web_acl" "this" {
+  #checkov:skip=CKV2_AWS_31:Logging is configured by aws_wafv2_web_acl_logging_configuration.this below.
   count = var.enabled ? 1 : 0
 
   name        = var.name
@@ -109,6 +125,13 @@ resource "aws_wafv2_web_acl" "this" {
     metric_name                = "${var.environment}PublicAlbWaf"
     sampled_requests_enabled   = true
   }
+}
+
+resource "aws_wafv2_web_acl_logging_configuration" "this" {
+  count = var.enabled ? 1 : 0
+
+  resource_arn            = aws_wafv2_web_acl.this[0].arn
+  log_destination_configs = [aws_cloudwatch_log_group.this[0].arn]
 }
 
 resource "aws_wafv2_web_acl_association" "alb" {

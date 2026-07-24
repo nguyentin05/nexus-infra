@@ -94,12 +94,13 @@ module "kms" {
 module "rds" {
   source = "../../modules/rds"
 
-  environment     = "dev"
-  identifier      = "dev-nexus-postgres"
-  database_name   = "nexus"
-  master_username = "nexus_admin"
-  vpc_id          = module.network.vpc_id
-  subnet_ids      = module.network.private_subnet_ids
+  environment                     = "dev"
+  identifier                      = "dev-nexus-postgres"
+  database_name                   = "nexus"
+  master_username                 = "nexus_admin"
+  performance_insights_kms_key_id = module.kms.key_arn
+  vpc_id                          = module.network.vpc_id
+  subnet_ids                      = module.network.private_subnet_ids
   allowed_security_group_ids = [
     module.network.node_security_group_id,
     module.eks.cluster_security_group_id,

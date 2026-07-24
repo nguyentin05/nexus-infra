@@ -29,13 +29,6 @@ resource "aws_security_group" "this" {
     security_groups = var.allowed_security_group_ids
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = merge(local.common_tags, {
     Name = "${var.identifier}-sg"
   })
@@ -57,12 +50,20 @@ resource "aws_db_parameter_group" "this" {
     apply_method = "immediate"
   }
 
+  parameter {
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "immediate"
+  }
+
   tags = merge(local.common_tags, {
     Name = "${var.identifier}-parameters"
   })
 }
 
 resource "aws_cloudwatch_log_group" "postgresql" {
+  #checkov:skip=CKV_AWS_158:CloudWatch encrypts logs at rest by default; a dedicated customer-managed logging key is deferred.
+  #checkov:skip=CKV_AWS_338:Retention is environment-specific and intentionally short for ephemeral development clusters.
   name              = "/aws/rds/instance/${var.identifier}/postgresql"
   retention_in_days = var.log_retention_days
 
@@ -71,7 +72,29 @@ resource "aws_cloudwatch_log_group" "postgresql" {
   })
 }
 
+resource "aws_iam_role" "monitoring" {
+  name = "${var.identifier}-monitoring"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "monitoring.rds.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy_attachment" "monitoring" {
+  role       = aws_iam_role.monitoring.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+}
+
 resource "aws_db_instance" "this" {
+  #checkov:skip=CKV_AWS_157:Multi-AZ is controlled per environment and intentionally disabled in ephemeral development.
+  #checkov:skip=CKV_AWS_293:Deletion protection is controlled per environment and intentionally disabled in ephemeral development.
   identifier = var.identifier
 
   engine         = "postgres"
@@ -86,7 +109,8 @@ resource "aws_db_instance" "this" {
   db_name  = var.database_name
   username = var.master_username
 
-  manage_master_user_password = true
+  manage_master_user_password         = true
+  iam_database_authentication_enabled = true
 
   db_subnet_group_name            = aws_db_subnet_group.this.name
   parameter_group_name            = aws_db_parameter_group.this.name
@@ -94,8 +118,13 @@ resource "aws_db_instance" "this" {
   enabled_cloudwatch_logs_exports = ["postgresql"]
   publicly_accessible             = false
   multi_az                        = var.multi_az
+  performance_insights_enabled    = true
+  performance_insights_kms_key_id = var.performance_insights_kms_key_id
+  monitoring_interval             = 60
+  monitoring_role_arn             = aws_iam_role.monitoring.arn
 
   backup_retention_period = var.backup_retention_period
+  copy_tags_to_snapshot   = true
   deletion_protection     = var.deletion_protection
   skip_final_snapshot     = var.skip_final_snapshot
 

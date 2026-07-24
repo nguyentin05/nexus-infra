@@ -7,12 +7,21 @@ locals {
 }
 
 resource "aws_vpc" "main" {
+  #checkov:skip=CKV2_AWS_11:VPC Flow Logs are deferred because they require a separate paid log-retention boundary.
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = merge(local.common_tags, {
     Name = "${var.environment}-vpc"
+  })
+}
+
+resource "aws_default_security_group" "this" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(local.common_tags, {
+    Name = "${var.environment}-default-sg"
   })
 }
 
@@ -29,7 +38,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidrs[count.index]
   availability_zone       = var.azs[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = merge(local.common_tags, {
     Name                                        = "${var.environment}-public-${var.azs[count.index]}"
@@ -112,12 +121,16 @@ resource "aws_route_table_association" "private" {
   route_table_id = var.single_nat_gateway ? aws_route_table.private[0].id : aws_route_table.private[count.index].id
 }
 
+#trivy:ignore:AVD-AWS-0104
 resource "aws_security_group" "node_sg" {
+  #checkov:skip=CKV_AWS_382:Worker nodes require outbound registry and AWS API access through the NAT gateway.
+  #checkov:skip=CKV2_AWS_5:EKS and Karpenter attach this discovery-tagged security group outside this module.
   name_prefix = "${var.environment}-node-sg-"
   vpc_id      = aws_vpc.main.id
   description = "Security group cho EKS worker nodes"
 
   egress {
+    description = "Outbound access through NAT gateway"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

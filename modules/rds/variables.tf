@@ -93,6 +93,11 @@ variable "apply_immediately" {
   default     = false
 }
 
+variable "performance_insights_kms_key_id" {
+  description = "Customer-managed KMS key ARN used to encrypt Performance Insights data"
+  type        = string
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)
