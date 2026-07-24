@@ -62,7 +62,6 @@ module "acm" {
 module "network" {
   source = "../../modules/network"
 
-  name                 = "dev-capstone"
   environment          = "dev"
   vpc_cidr             = "10.0.0.0/16"
   azs                  = ["ap-southeast-1a", "ap-southeast-1b"]
@@ -137,9 +136,7 @@ module "eks" {
 
   environment                      = "dev"
   cluster_version                  = "1.36"
-  vpc_id                           = module.network.vpc_id
   private_subnet_ids               = module.network.private_subnet_ids
-  public_subnet_ids                = module.network.public_subnet_ids
   system_node_instance_type        = "t3.small"
   system_node_desired_size         = 5
   system_node_max_pods             = 30

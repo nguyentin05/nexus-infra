@@ -22,5 +22,9 @@ terraform {
       source  = "gavinbunney/kubectl"
       version = "~> 1.19"
     }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 }
