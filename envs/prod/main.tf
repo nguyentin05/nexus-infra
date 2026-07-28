@@ -24,18 +24,36 @@ provider "helm" {
   }
 }
 
+locals {
+  environment = "prod"
+
+  vpc_cidr = "10.1.0.0/16"
+
+  common_tags = {
+    Project     = "major"
+    Environment = local.environment
+    ManagedBy   = "terraform"
+  }
+}
+
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 module "network" {
-  source = "../../modules/network"
+  source       = "../../modules/network"
+  vpc_cidr     = local.vpc_cidr
+  cluster_name = "${local.environment}-capstone-eks"
+  public_subnets = {
+    (data.aws_availability_zones.available.names[0]) = cidrsubnet(local.vpc_cidr, 8, 0)
+    (data.aws_availability_zones.available.names[1]) = cidrsubnet(local.vpc_cidr, 8, 1)
+  }
+  private_subnets = {
+    (data.aws_availability_zones.available.names[0]) = cidrsubnet(local.vpc_cidr, 8, 10)
+    (data.aws_availability_zones.available.names[1]) = cidrsubnet(local.vpc_cidr, 8, 11)
+  }
 
-  environment          = "prod"
-  vpc_cidr             = "10.1.0.0/16"
-  azs                  = ["ap-southeast-1a", "ap-southeast-1b"]
-  public_subnet_cidrs  = ["10.1.0.0/24", "10.1.1.0/24"]
-  private_subnet_cidrs = ["10.1.10.0/24", "10.1.11.0/24"]
-  single_nat_gateway   = false
-  cluster_name         = "prod-capstone-eks"
-
-  tags = { Project = "capstone" }
+  tags = local.common_tags
 }
 
 module "sqs" {

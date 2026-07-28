@@ -1,5 +1,5 @@
-variable "environment" {
-  description = "Environment name (dev, prod)"
+variable "cluster_name" {
+  description = "EKS cluster name used for Kubernetes subnet discovery tags"
   type        = string
 }
 
@@ -8,31 +8,29 @@ variable "vpc_cidr" {
   type        = string
 }
 
-variable "azs" {
-  description = "Availability zones"
-  type        = list(string)
-  default     = ["ap-southeast-1a", "ap-southeast-1b"]
+variable "public_subnets" {
+  description = "Map of availability zone to public subnet CIDR"
+  type        = map(string)
+
+  validation {
+    condition     = length(var.public_subnets) > 0
+    error_message = "At least one public subnet is required."
+  }
 }
 
-variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets"
-  type        = list(string)
-}
+variable "private_subnets" {
+  description = "Map of availability zone to private subnet CIDR"
+  type        = map(string)
 
-variable "private_subnet_cidrs" {
-  description = "CIDR blocks for private subnets"
-  type        = list(string)
-}
+  validation {
+    condition     = length(var.private_subnets) > 0
+    error_message = "At least one private subnet is required."
+  }
 
-variable "single_nat_gateway" {
-  description = "Use a single NAT gateway instead of one NAT gateway per availability zone"
-  type        = bool
-  default     = true
-}
-
-variable "cluster_name" {
-  description = "EKS cluster name used for Kubernetes subnet discovery tags"
-  type        = string
+  validation {
+    condition     = sort(keys(var.private_subnets)) == sort(keys(var.public_subnets))
+    error_message = "Public and private subnets must use the same availability zones."
+  }
 }
 
 variable "tags" {

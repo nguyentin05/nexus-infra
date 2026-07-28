@@ -1,61 +1,51 @@
 locals {
-  common_tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "vpc"
+  common_tags = merge(local.common_tags, {
+    Module = "network"
   })
 }
 
-resource "aws_vpc" "main" {
+resource "aws_vpc" "this" {
   #checkov:skip=CKV2_AWS_11:VPC Flow Logs are deferred because they require a separate paid log-retention boundary.
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-vpc"
+    Name = "vpc"
   })
 }
 
-resource "aws_default_security_group" "this" {
-  vpc_id = aws_vpc.main.id
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-default-sg"
-  })
-}
-
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-igw"
+    Name = "igw"
   })
 }
 
 resource "aws_subnet" "public" {
-  count                   = length(var.public_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = var.azs[count.index]
+  for_each                = var.public_subnets
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = each.value
+  availability_zone       = each.key
   map_public_ip_on_launch = false
 
   tags = merge(local.common_tags, {
-    Name                                        = "${var.environment}-public-${var.azs[count.index]}"
+    Name                                        = "public-subnet-${each.key}"
     "kubernetes.io/role/elb"                    = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
   })
 }
 
 resource "aws_subnet" "private" {
-  count                   = length(var.private_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.private_subnet_cidrs[count.index]
-  availability_zone       = var.azs[count.index]
+  for_each                = var.private_subnets
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = each.value
+  availability_zone       = each.key
   map_public_ip_on_launch = false
 
   tags = merge(local.common_tags, {
-    Name                                        = "${var.environment}-private-${var.azs[count.index]}"
+    Name                                        = "private-subnet-${each.key}"
     "kubernetes.io/role/internal-elb"           = "1"
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
     "karpenter.sh/discovery"                    = var.cluster_name
@@ -63,71 +53,79 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_eip" "nat" {
-  count  = var.single_nat_gateway ? 1 : length(var.public_subnet_cidrs)
-  domain = "vpc"
+  for_each = var.public_subnets
+  domain   = "vpc"
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-nat-eip-${count.index}"
+    Name = "nat-eip-${each.key}"
   })
 }
 
-resource "aws_nat_gateway" "main" {
-  count         = var.single_nat_gateway ? 1 : length(var.public_subnet_cidrs)
-  allocation_id = aws_eip.nat[count.index].id
-  subnet_id     = aws_subnet.public[count.index].id
-  depends_on    = [aws_internet_gateway.main]
+resource "aws_nat_gateway" "this" {
+  for_each      = var.public_subnets
+  allocation_id = aws_eip.nat[each.key].id
+  subnet_id     = aws_subnet.public[each.key].id
+  depends_on    = [aws_internet_gateway.this]
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-nat-${count.index}"
+    Name = "nat-${each.key}"
   })
 }
 
 resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
+  vpc_id = aws_vpc.this.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
+    gateway_id = aws_internet_gateway.this.id
   }
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-public-rt"
+    Name = "public-rt"
+  })
+}
+
+resource "aws_route_table" "private" {
+  for_each = var.private_subnets
+  vpc_id   = aws_vpc.this.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.this[each.key].id
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "private-rt-${each.key}"
   })
 }
 
 resource "aws_route_table_association" "public" {
-  count          = length(var.public_subnet_cidrs)
-  subnet_id      = aws_subnet.public[count.index].id
+  for_each       = var.public_subnets
+  subnet_id      = aws_subnet.public[each.key].id
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_route_table" "private" {
-  count  = var.single_nat_gateway ? 1 : length(var.private_subnet_cidrs)
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = var.single_nat_gateway ? aws_nat_gateway.main[0].id : aws_nat_gateway.main[count.index].id
-  }
-
-  tags = merge(local.common_tags, {
-    Name = "${var.environment}-private-rt-${count.index}"
-  })
+resource "aws_route_table_association" "private" {
+  for_each       = var.private_subnets
+  subnet_id      = aws_subnet.private[each.key].id
+  route_table_id = aws_route_table.private[each.key].id
 }
 
-resource "aws_route_table_association" "private" {
-  count          = length(var.private_subnet_cidrs)
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = var.single_nat_gateway ? aws_route_table.private[0].id : aws_route_table.private[count.index].id
+resource "aws_default_security_group" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(local.common_tags, {
+    Name = "default-sg"
+  })
 }
 
 #trivy:ignore:AVD-AWS-0104
 resource "aws_security_group" "node_sg" {
   #checkov:skip=CKV_AWS_382:Worker nodes require outbound registry and AWS API access through the NAT gateway.
   #checkov:skip=CKV2_AWS_5:EKS and Karpenter attach this discovery-tagged security group outside this module.
-  name_prefix = "${var.environment}-node-sg-"
-  vpc_id      = aws_vpc.main.id
-  description = "Security group cho EKS worker nodes"
+  name_prefix = "node-sg-"
+  vpc_id      = aws_vpc.this.id
+  description = "Security group for EKS worker nodes"
 
   egress {
     description = "Outbound access through NAT gateway"
@@ -146,7 +144,7 @@ resource "aws_security_group" "node_sg" {
   }
 
   tags = merge(local.common_tags, {
-    Name                     = "${var.environment}-node-sg"
+    Name                     = "node-sg"
     "karpenter.sh/discovery" = var.cluster_name
   })
 
