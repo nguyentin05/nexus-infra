@@ -3,7 +3,7 @@ variable "environment" {
 }
 
 variable "key_alias" {
-  description = "Alias cho KMS key, VD: vault-unseal"
+  description = "Alias cho KMS key"
   type        = string
 }
 

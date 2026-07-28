@@ -56,6 +56,14 @@ module "network" {
   tags = local.common_tags
 }
 
+module "kms" {
+  source      = "../../modules/kms"
+  environment = "prod"
+  key_alias   = "vault-unseal"
+
+  tags = { Project = "capstone" }
+}
+
 module "sqs" {
   source = "../../modules/sqs"
 
@@ -65,14 +73,7 @@ module "sqs" {
   tags = { Project = "capstone" }
 }
 
-module "kms" {
-  source = "../../modules/kms"
 
-  environment = "prod"
-  key_alias   = "vault-unseal"
-
-  tags = { Project = "capstone" }
-}
 
 module "rds" {
   source = "../../modules/rds"

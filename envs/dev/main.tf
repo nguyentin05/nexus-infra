@@ -91,6 +91,14 @@ module "network" {
   tags = local.common_tags
 }
 
+module "kms" {
+  source      = "../../modules/kms"
+  environment = local.environment
+  key_alias   = "vault-unseal"
+
+  tags = local.common_tags
+}
+
 module "sqs" {
   source = "../../modules/sqs"
 
@@ -110,15 +118,6 @@ module "ecr" {
   ]
   force_delete = true
   kms_key_arn  = module.kms.key_arn
-
-  tags = local.common_tags
-}
-
-module "kms" {
-  source = "../../modules/kms"
-
-  environment = local.environment
-  key_alias   = "vault-unseal"
 
   tags = local.common_tags
 }
