@@ -76,7 +76,8 @@ data "aws_availability_zones" "available" {
 }
 
 module "network" {
-  source       = "../../modules/network"
+  source = "../../modules/network"
+
   vpc_cidr     = local.vpc_cidr
   cluster_name = "${local.environment}-capstone-eks"
   public_subnets = {
@@ -92,7 +93,8 @@ module "network" {
 }
 
 module "kms" {
-  source      = "../../modules/kms"
+  source = "../../modules/kms"
+
   environment = local.environment
   key_alias   = "vault-unseal"
 
@@ -132,20 +134,17 @@ module "rds" {
   performance_insights_kms_key_id = module.kms.key_arn
   vpc_id                          = module.network.vpc_id
   subnet_ids                      = module.network.private_subnet_ids
-  allowed_security_group_ids = [
-    module.network.node_security_group_id,
-    module.eks.cluster_security_group_id,
-  ]
-  engine_version          = "18"
-  parameter_group_family  = "postgres18"
-  instance_class          = "db.t3.micro"
-  allocated_storage       = 20
-  backup_retention_period = 1
-  log_retention_days      = 7
-  multi_az                = false
-  deletion_protection     = false
-  skip_final_snapshot     = true
-  apply_immediately       = true
+  allowed_security_group_id       = module.network.node_security_group_id
+  engine_version                  = "18"
+  parameter_group_family          = "postgres18"
+  instance_class                  = "db.t3.micro"
+  allocated_storage               = 20
+  backup_retention_period         = 1
+  log_retention_days              = 7
+  multi_az                        = false
+  deletion_protection             = false
+  skip_final_snapshot             = true
+  apply_immediately               = true
 
   tags = local.common_tags
 }

@@ -28,9 +28,9 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
-variable "allowed_security_group_ids" {
-  description = "Security group IDs allowed to connect to PostgreSQL"
-  type        = list(string)
+variable "allowed_security_group_id" {
+  description = "Security group ID allowed to connect to PostgreSQL"
+  type        = string
 }
 
 variable "instance_class" {
