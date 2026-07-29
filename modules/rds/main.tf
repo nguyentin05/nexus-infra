@@ -108,7 +108,6 @@ resource "aws_db_instance" "this" {
   parameter_group_name                = aws_db_parameter_group.this.name
   vpc_security_group_ids              = [aws_security_group.this.id]
   enabled_cloudwatch_logs_exports     = ["postgresql"]
-  publicly_accessible                 = false
   multi_az                            = var.multi_az
   performance_insights_enabled        = true
   performance_insights_kms_key_id     = var.performance_insights_kms_key_id
@@ -118,7 +117,6 @@ resource "aws_db_instance" "this" {
   copy_tags_to_snapshot               = true
   deletion_protection                 = var.deletion_protection
   skip_final_snapshot                 = var.skip_final_snapshot
-  auto_minor_version_upgrade          = true
   apply_immediately                   = var.apply_immediately
 
   tags = merge(local.common_tags, {
