@@ -19,6 +19,7 @@ resource "aws_security_group" "this" {
   vpc_id      = var.vpc_id
 
   ingress {
+    description     = "PostgreSQL from EKS workload nodes"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"

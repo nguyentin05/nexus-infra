@@ -1,8 +1,3 @@
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
 variable "identifier" {
   description = "RDS instance identifier"
   type        = string
