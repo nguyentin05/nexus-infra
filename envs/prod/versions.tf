@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5.0"
+    }
     kubernetes = {
       source  = "hashicorp/kubernetes"
       version = "~> 2.27"
@@ -13,6 +17,14 @@ terraform {
     helm = {
       source  = "hashicorp/helm"
       version = "~> 2.12"
+    }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.19"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
     }
   }
 }

@@ -1,5 +1,5 @@
 locals {
-  origin_id = "${var.name}-alb"
+  origin_id = "${var.name}-origin"
   common_tags = merge(var.tags, {
     Module = "cloudfront"
   })

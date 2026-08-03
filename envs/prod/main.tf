@@ -2,6 +2,13 @@ provider "aws" {
   region = "ap-southeast-1"
 }
 
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
+provider "cloudflare" {}
+
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
@@ -24,6 +31,18 @@ provider "helm" {
   }
 }
 
+provider "kubectl" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
+  load_config_file       = false
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+  }
+}
+
 locals {
   project      = "major"
   environment  = "prod"
@@ -40,6 +59,13 @@ locals {
 
 data "aws_availability_zones" "available" {
   state = "available"
+}
+
+data "aws_acm_certificate" "api" {
+  provider    = aws.us_east_1
+  domain      = "tin-nexus.com"
+  statuses    = ["ISSUED"]
+  most_recent = true
 }
 
 module "network" {
@@ -103,6 +129,19 @@ module "rds" {
   tags = local.common_tags
 }
 
+module "nlb" {
+  source = "../../modules/nlb"
+
+  environment              = local.environment
+  name                     = "${local.environment}-nexus-public-nlb"
+  vpc_id                   = module.network.vpc_id
+  public_subnet_ids        = module.network.public_subnet_ids
+  target_security_group_id = module.network.node_security_group_id
+  target_group_name        = "${local.environment}-envoy-gateway-nlb"
+
+  tags = local.common_tags
+}
+
 module "eks" {
   source = "../../modules/eks"
 
@@ -146,15 +185,34 @@ module "karpenter" {
   cluster_name      = module.eks.cluster_name
   cluster_endpoint  = module.eks.cluster_endpoint
   oidc_provider_arn = module.eks.oidc_provider_arn
+  create_node_pool  = true
   instance_types    = ["t3.small"]
   tags              = local.common_tags
 }
 
-module "waf" {
+module "cloudfront_waf" {
   source = "../../modules/waf"
 
-  environment = local.environment
-  name        = "${local.environment}-nexus-public-alb-waf"
+  providers = {
+    aws = aws.us_east_1
+  }
+
+  environment                                 = local.environment
+  name                                        = "${local.environment}-nexus-cloudfront-waf"
+  override_size_restrictions_body_to_count    = true
+  override_cross_site_scripting_body_to_count = true
+
+  tags = local.common_tags
+}
+
+module "cloudfront" {
+  source = "../../modules/cloudfront"
+
+  name               = "prod-nexus-api-cdn"
+  origin_domain_name = module.nlb.dns_name
+  aliases            = ["api-prod.tin-nexus.com"]
+  certificate_arn    = data.aws_acm_certificate.api.arn
+  web_acl_id         = module.cloudfront_waf.web_acl_arn
 
   tags = local.common_tags
 }

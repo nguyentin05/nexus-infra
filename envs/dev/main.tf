@@ -132,15 +132,15 @@ module "rds" {
   tags = local.common_tags
 }
 
-module "alb" {
-  source = "../../modules/alb"
+module "nlb" {
+  source = "../../modules/nlb"
 
   environment              = local.environment
-  name                     = "${local.environment}-nexus-public-alb"
+  name                     = "${local.environment}-nexus-public-nlb"
   vpc_id                   = module.network.vpc_id
   public_subnet_ids        = module.network.public_subnet_ids
-  target_security_group_id = module.eks.cluster_security_group_id
-  target_group_name        = "${local.environment}-envoy-gateway"
+  target_security_group_id = module.network.node_security_group_id
+  target_group_name        = "${local.environment}-envoy-gateway-nlb"
 
   tags = local.common_tags
 }
@@ -200,13 +200,15 @@ module "karpenter" {
   tags = local.common_tags
 }
 
-module "waf" {
+module "cloudfront_waf" {
   source = "../../modules/waf"
 
+  providers = {
+    aws = aws.us_east_1
+  }
+
   environment                                 = local.environment
-  name                                        = "${local.environment}-nexus-public-alb-waf"
-  alb_arn                                     = module.alb.load_balancer_arn
-  associate_alb                               = true
+  name                                        = "${local.environment}-nexus-cloudfront-waf"
   override_size_restrictions_body_to_count    = true
   override_cross_site_scripting_body_to_count = true
 
@@ -217,9 +219,10 @@ module "cloudfront" {
   source = "../../modules/cloudfront"
 
   name               = "dev-nexus-api-cdn"
-  origin_domain_name = module.alb.dns_name
+  origin_domain_name = module.nlb.dns_name
   aliases            = ["api.tin-nexus.com"]
   certificate_arn    = data.aws_acm_certificate.api.arn
+  web_acl_id         = module.cloudfront_waf.web_acl_arn
 
   tags = local.common_tags
 }
