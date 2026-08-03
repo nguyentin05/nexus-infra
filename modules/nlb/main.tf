@@ -1,6 +1,6 @@
 locals {
   common_tags = merge(var.tags, {
-    Module = "alb"
+    Module = "nlb"
   })
 }
 
@@ -9,8 +9,8 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 }
 
 resource "aws_security_group" "this" {
-  name_prefix = "${var.environment}-public-alb-"
-  description = "Security group for the public API ALB"
+  name_prefix = "${var.environment}-public-nlb-"
+  description = "Security group for the public API NLB"
   vpc_id      = var.vpc_id
 
   ingress {
@@ -30,7 +30,7 @@ resource "aws_security_group" "this" {
   }
 
   tags = merge(local.common_tags, {
-    Name = "public-alb-sg"
+    Name = "public-nlb-sg"
   })
 
   lifecycle {
@@ -38,9 +38,9 @@ resource "aws_security_group" "this" {
   }
 }
 
-resource "aws_security_group_rule" "targets_from_alb" {
+resource "aws_security_group_rule" "targets_from_nlb" {
   type                     = "ingress"
-  description              = "Allow public ALB to reach Envoy Gateway targets"
+  description              = "Allow public NLB to reach Envoy Gateway targets"
   security_group_id        = var.target_security_group_id
   source_security_group_id = aws_security_group.this.id
   from_port                = var.target_port
@@ -52,31 +52,28 @@ resource "aws_security_group_rule" "targets_from_alb" {
 resource "aws_lb" "this" {
   #checkov:skip=CKV_AWS_91:Access logs require a dedicated S3 logging boundary and are deferred for the ephemeral environment.
   #checkov:skip=CKV_AWS_150:Deletion protection would prevent the documented destroy/recreate development workflow.
-  #checkov:skip=CKV2_AWS_28:The ALB is associated with the regional Web ACL by the separate WAF module.
-  #checkov:skip=CKV2_AWS_20:Viewer HTTP is redirected by CloudFront; the ALB listener is origin-only and prefix-list restricted.
-  name                       = var.name
-  load_balancer_type         = "application"
-  internal                   = false
-  security_groups            = [aws_security_group.this.id]
-  subnets                    = var.public_subnet_ids
-  drop_invalid_header_fields = true
+  name               = var.name
+  load_balancer_type = "network"
+  internal           = false
+  security_groups    = [aws_security_group.this.id]
+  subnets            = var.public_subnet_ids
 
   tags = merge(local.common_tags, {
-    Name = "public-alb"
+    Name = "public-nlb"
   })
 }
 
 resource "aws_lb_target_group" "envoy" {
-  #checkov:skip=CKV_AWS_378:TLS terminates at CloudFront; this private VPC hop terminates at Envoy over HTTP.
   name        = var.target_group_name
   port        = var.target_port
-  protocol    = "HTTP"
+  protocol    = "TCP"
   target_type = "ip"
   vpc_id      = var.vpc_id
 
   health_check {
     enabled             = true
     path                = var.health_check_path
+    port                = "traffic-port"
     protocol            = "HTTP"
     matcher             = "200-399"
     healthy_threshold   = 2
@@ -90,14 +87,10 @@ resource "aws_lb_target_group" "envoy" {
   })
 }
 
-#trivy:ignore:AVD-AWS-0054
 resource "aws_lb_listener" "http" {
-  #checkov:skip=CKV_AWS_2:TLS terminates at CloudFront and only CloudFront prefix-list traffic can reach this listener.
-  #checkov:skip=CKV_AWS_103:This listener is intentionally HTTP behind the TLS-terminating CloudFront distribution.
-  #checkov:skip=CKV2_AWS_20:Viewer HTTP is redirected to HTTPS by CloudFront before requests reach the ALB.
   load_balancer_arn = aws_lb.this.arn
   port              = 80
-  protocol          = "HTTP"
+  protocol          = "TCP"
 
   default_action {
     type             = "forward"

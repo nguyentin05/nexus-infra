@@ -4,27 +4,27 @@ variable "environment" {
 }
 
 variable "name" {
-  description = "ALB name"
+  description = "NLB name"
   type        = string
 }
 
 variable "vpc_id" {
-  description = "VPC ID where the ALB and target group are created"
+  description = "VPC ID where the NLB and target group are created"
   type        = string
 }
 
 variable "public_subnet_ids" {
-  description = "Public subnet IDs for the internet-facing ALB"
+  description = "Public subnet IDs for the internet-facing NLB"
   type        = list(string)
 }
 
 variable "target_security_group_id" {
-  description = "Security group attached to the Kubernetes nodes/pod ENIs that receive ALB traffic"
+  description = "Security group attached to the Kubernetes nodes or pod ENIs"
   type        = string
 }
 
 variable "target_group_name" {
-  description = "Stable Target Group name referenced by Kubernetes TargetGroupBinding"
+  description = "Stable target group name referenced by Kubernetes TargetGroupBinding"
   type        = string
 }
 
@@ -35,7 +35,7 @@ variable "target_port" {
 }
 
 variable "health_check_path" {
-  description = "ALB target group health check path"
+  description = "NLB target group HTTP health check path"
   type        = string
   default     = "/auth"
 }
