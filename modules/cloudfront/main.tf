@@ -11,6 +11,7 @@ resource "aws_cloudfront_distribution" "this" {
   #checkov:skip=CKV_AWS_374:The public API is intentionally available globally.
   #checkov:skip=CKV_AWS_305:This is an API distribution and has no root document.
   #checkov:skip=CKV_AWS_310:The current platform is single-region and has no valid failover origin.
+  #checkov:skip=CKV2_AWS_47:The attached sibling WAF module includes AWSManagedRulesKnownBadInputsRuleSet and AWSManagedRulesAnonymousIpList; Checkov cannot traverse the module output graph.
   enabled         = true
   is_ipv6_enabled = true
   comment         = var.name
