@@ -5,16 +5,20 @@ locals {
 }
 
 resource "aws_db_subnet_group" "this" {
-  name       = "rds-subnet-group"
+  name       = "${var.identifier}-database-subnet-group"
   subnet_ids = var.subnet_ids
 
   tags = merge(local.common_tags, {
     Name = "rds-subnet-group"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "aws_security_group" "this" {
-  name        = "rds-sg"
+  name        = "${var.identifier}-sg"
   description = "PostgreSQL access for rds"
   vpc_id      = var.vpc_id
 
@@ -32,7 +36,7 @@ resource "aws_security_group" "this" {
 }
 
 resource "aws_db_parameter_group" "this" {
-  name   = "rds-${var.parameter_group_family}"
+  name   = "${var.identifier}-parameter-group"
   family = var.parameter_group_family
 
   parameter {
@@ -65,27 +69,32 @@ resource "aws_cloudwatch_log_group" "postgresql" {
   retention_in_days = var.log_retention_days
 
   tags = merge(local.common_tags, {
-    Name = "rds-postgresql"
+    Name = "rds-cloudwatch-log-group"
   })
 }
 
-resource "aws_iam_role" "monitoring" {
-  name = "${var.identifier}-monitoring"
+data "aws_iam_policy_document" "monitoring_db_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "monitoring.rds.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-
-  tags = local.common_tags
+    principals {
+      type        = "Service"
+      identifiers = ["monitoring.rds.amazonaws.com"]
+    }
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "monitoring" {
-  role       = aws_iam_role.monitoring.name
+resource "aws_iam_role" "monitoring_db" {
+  name               = "${var.identifier}-monitoring-db"
+  assume_role_policy = data.aws_iam_policy_document.monitoring_db_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "monitoring-db-role"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "monitoring_db" {
+  role       = aws_iam_role.monitoring_db.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
 }
 
@@ -112,16 +121,18 @@ resource "aws_db_instance" "this" {
   performance_insights_enabled        = true
   performance_insights_kms_key_id     = var.performance_insights_kms_key_id
   monitoring_interval                 = 60
-  monitoring_role_arn                 = aws_iam_role.monitoring.arn
+  monitoring_role_arn                 = aws_iam_role.monitoring_db.arn
   backup_retention_period             = var.backup_retention_period
   copy_tags_to_snapshot               = true
   deletion_protection                 = var.deletion_protection
   skip_final_snapshot                 = var.skip_final_snapshot
   apply_immediately                   = var.apply_immediately
+  depends_on = [
+    aws_cloudwatch_log_group.postgresql,
+    aws_iam_role_policy_attachment.monitoring_db,
+  ]
 
   tags = merge(local.common_tags, {
-    Name = var.identifier
+    Name = "rds-instance"
   })
-
-  depends_on = [aws_cloudwatch_log_group.postgresql]
 }

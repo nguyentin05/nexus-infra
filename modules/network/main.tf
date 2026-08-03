@@ -52,6 +52,18 @@ resource "aws_subnet" "private" {
   })
 }
 
+resource "aws_subnet" "database" {
+  for_each                = var.database_subnets
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = each.value
+  availability_zone       = each.key
+  map_public_ip_on_launch = false
+
+  tags = merge(local.common_tags, {
+    Name = "database-subnet-${each.key}"
+  })
+}
+
 resource "aws_eip" "nat" {
   for_each = var.public_subnets
   domain   = "vpc"
@@ -99,6 +111,14 @@ resource "aws_route_table" "private" {
   })
 }
 
+resource "aws_route_table" "database" {
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(local.common_tags, {
+    Name = "database-rt"
+  })
+}
+
 resource "aws_route_table_association" "public" {
   for_each       = var.public_subnets
   subnet_id      = aws_subnet.public[each.key].id
@@ -109,6 +129,12 @@ resource "aws_route_table_association" "private" {
   for_each       = var.private_subnets
   subnet_id      = aws_subnet.private[each.key].id
   route_table_id = aws_route_table.private[each.key].id
+}
+
+resource "aws_route_table_association" "database" {
+  for_each       = var.database_subnets
+  subnet_id      = aws_subnet.database[each.key].id
+  route_table_id = aws_route_table.database.id
 }
 
 resource "aws_default_security_group" "this" {
@@ -123,32 +149,37 @@ resource "aws_default_security_group" "this" {
 resource "aws_security_group" "node_sg" {
   #checkov:skip=CKV_AWS_382:Worker nodes require outbound registry and AWS API access through the NAT gateway.
   #checkov:skip=CKV2_AWS_5:EKS and Karpenter attach this discovery-tagged security group outside this module.
-  name_prefix = "node-sg-"
+  name_prefix = "${var.environment}-node-sg-"
   vpc_id      = aws_vpc.this.id
   description = "Security group for EKS worker nodes"
 
-  egress {
-    description = "Outbound access through NAT gateway"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "Node to node communication"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    self        = true
-  }
-
   tags = merge(local.common_tags, {
-    Name                     = "node-sg"
-    "karpenter.sh/discovery" = var.cluster_name
+    Name                               = "node-sg"
+    "karpenter.sh/discovery"           = var.cluster_name
+    "karpenter.sh/node-security-group" = var.cluster_name
   })
 
   lifecycle {
     create_before_destroy = true
   }
+}
+
+resource "aws_security_group_rule" "node_egress_all" {
+  description       = "Outbound access through NAT gateway"
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  security_group_id = aws_security_group.node_sg.id
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "node_ingress_self" {
+  description       = "Node to node communication"
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  security_group_id = aws_security_group.node_sg.id
+  self              = true
 }

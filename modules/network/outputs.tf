@@ -15,6 +15,11 @@ output "private_subnet_ids" {
   value = [for az in sort(keys(var.private_subnets)) : aws_subnet.private[az].id]
 }
 
+output "database_subnet_ids" {
+  description = "Isolated subnet IDs reserved for managed data services"
+  value       = [for az in sort(keys(var.database_subnets)) : aws_subnet.database[az].id]
+}
+
 output "nat_gateway_ids" {
   value = [for az in sort(keys(var.public_subnets)) : aws_nat_gateway.this[az].id]
 }

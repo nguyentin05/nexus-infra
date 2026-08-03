@@ -1,3 +1,8 @@
+variable "environment" {
+  description = "Deployment environment used to namespace AWS resource names"
+  type        = string
+}
+
 variable "cluster_name" {
   description = "EKS cluster name used for Kubernetes subnet discovery tags"
   type        = string
@@ -30,6 +35,21 @@ variable "private_subnets" {
   validation {
     condition     = sort(keys(var.private_subnets)) == sort(keys(var.public_subnets))
     error_message = "Public and private subnets must use the same availability zones."
+  }
+}
+
+variable "database_subnets" {
+  description = "Map of availability zone to isolated database subnet CIDR"
+  type        = map(string)
+
+  validation {
+    condition     = length(var.database_subnets) >= 2
+    error_message = "At least two database subnets are required for an RDS DB subnet group."
+  }
+
+  validation {
+    condition     = sort(keys(var.database_subnets)) == sort(keys(var.private_subnets))
+    error_message = "Private and database subnets must use the same availability zones."
   }
 }
 
