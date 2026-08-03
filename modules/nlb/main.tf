@@ -52,11 +52,13 @@ resource "aws_security_group_rule" "targets_from_nlb" {
 resource "aws_lb" "this" {
   #checkov:skip=CKV_AWS_91:Access logs require a dedicated S3 logging boundary and are deferred for the ephemeral environment.
   #checkov:skip=CKV_AWS_150:Deletion protection would prevent the documented destroy/recreate development workflow.
-  name               = var.name
-  load_balancer_type = "network"
-  internal           = false
-  security_groups    = [aws_security_group.this.id]
-  subnets            = var.public_subnet_ids
+  #checkov:skip=CKV2_AWS_20:TLS and HTTP-to-HTTPS redirects are enforced by CloudFront; this NLB is a TCP origin.
+  name                             = var.name
+  load_balancer_type               = "network"
+  internal                         = false
+  security_groups                  = [aws_security_group.this.id]
+  subnets                          = var.public_subnet_ids
+  enable_cross_zone_load_balancing = true
 
   tags = merge(local.common_tags, {
     Name = "public-nlb"
