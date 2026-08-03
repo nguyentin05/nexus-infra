@@ -145,9 +145,7 @@ resource "aws_default_security_group" "this" {
   })
 }
 
-#trivy:ignore:AVD-AWS-0104
 resource "aws_security_group" "node_sg" {
-  #checkov:skip=CKV_AWS_382:Worker nodes require outbound registry and AWS API access through the NAT gateway.
   #checkov:skip=CKV2_AWS_5:EKS and Karpenter attach this discovery-tagged security group outside this module.
   name_prefix = "${var.environment}-node-sg-"
   vpc_id      = aws_vpc.this.id
@@ -164,7 +162,9 @@ resource "aws_security_group" "node_sg" {
   }
 }
 
+#trivy:ignore:AVD-AWS-0104
 resource "aws_security_group_rule" "node_egress_all" {
+  #checkov:skip=CKV_AWS_382:Worker nodes require outbound registry and AWS API access through the NAT gateway.
   description       = "Outbound access through NAT gateway"
   type              = "egress"
   from_port         = 0
