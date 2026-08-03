@@ -113,6 +113,28 @@ resource "aws_wafv2_web_acl" "this" {
     }
   }
 
+  rule {
+    name     = "AWSManagedRulesAnonymousIpList"
+    priority = 40
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        name        = "AWSManagedRulesAnonymousIpList"
+        vendor_name = "AWS"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "${var.environment}AnonymousIpList"
+      sampled_requests_enabled   = true
+    }
+  }
+
   tags = merge(var.tags, {
     Module = "waf"
     Name   = "cloudfront-web-acl"
