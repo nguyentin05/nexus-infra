@@ -17,8 +17,8 @@ resource "aws_wafv2_web_acl" "this" {
   count = var.enabled ? 1 : 0
 
   name        = var.name
-  description = "${var.environment} public ALB WAF"
-  scope       = "REGIONAL"
+  description = "${var.environment} CloudFront WAF"
+  scope       = "CLOUDFRONT"
 
   default_action {
     allow {}
@@ -115,12 +115,12 @@ resource "aws_wafv2_web_acl" "this" {
 
   tags = merge(var.tags, {
     Module = "waf"
-    Name   = "public-alb-web-acl"
+    Name   = "cloudfront-web-acl"
   })
 
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "${var.environment}PublicAlbWaf"
+    metric_name                = "${var.environment}CloudFrontWaf"
     sampled_requests_enabled   = true
   }
 }
@@ -130,11 +130,4 @@ resource "aws_wafv2_web_acl_logging_configuration" "this" {
 
   resource_arn            = aws_wafv2_web_acl.this[0].arn
   log_destination_configs = [aws_cloudwatch_log_group.this[0].arn]
-}
-
-resource "aws_wafv2_web_acl_association" "alb" {
-  count = var.enabled && var.associate_alb ? 1 : 0
-
-  resource_arn = var.alb_arn
-  web_acl_arn  = aws_wafv2_web_acl.this[0].arn
 }
