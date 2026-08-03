@@ -7,9 +7,8 @@ resource "aws_cloudwatch_log_group" "this" {
   retention_in_days = 30
 
   tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "waf"
+    Module = "waf"
+    Name   = "waf-log-group"
   })
 }
 
@@ -115,9 +114,8 @@ resource "aws_wafv2_web_acl" "this" {
   }
 
   tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "waf"
+    Module = "waf"
+    Name   = "public-alb-web-acl"
   })
 
   visibility_config {

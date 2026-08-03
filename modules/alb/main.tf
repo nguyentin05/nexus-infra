@@ -1,8 +1,6 @@
 locals {
   common_tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "alb"
+    Module = "alb"
   })
 }
 
@@ -32,7 +30,7 @@ resource "aws_security_group" "this" {
   }
 
   tags = merge(local.common_tags, {
-    Name = "${var.environment}-public-alb-sg"
+    Name = "public-alb-sg"
   })
 
   lifecycle {
@@ -64,7 +62,7 @@ resource "aws_lb" "this" {
   drop_invalid_header_fields = true
 
   tags = merge(local.common_tags, {
-    Name = var.name
+    Name = "public-alb"
   })
 }
 
@@ -88,7 +86,7 @@ resource "aws_lb_target_group" "envoy" {
   }
 
   tags = merge(local.common_tags, {
-    Name = var.target_group_name
+    Name = "envoy-target-group"
   })
 }
 

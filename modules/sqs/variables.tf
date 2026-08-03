@@ -1,10 +1,10 @@
 variable "environment" {
-  description = "Environment name"
+  description = "Deployment environment used to namespace AWS resource names"
   type        = string
 }
 
 variable "queue_name" {
-  description = "SQS queue name"
+  description = "SQS queue name without the environment prefix"
   type        = string
 }
 

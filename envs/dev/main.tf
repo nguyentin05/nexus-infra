@@ -44,42 +44,36 @@ provider "kubectl" {
 }
 
 locals {
-  environment = "dev"
+  project      = "major"
+  environment  = "dev"
+  cluster_name = "${local.environment}-${local.project}-eks"
 
   vpc_cidr = "10.0.0.0/16"
 
   common_tags = {
-    Project     = "major"
+    Project     = local.project
     Environment = local.environment
     ManagedBy   = "terraform"
   }
-}
-
-module "acm" {
-  source = "../../modules/acm"
-
-  providers = {
-    aws        = aws.us_east_1
-    cloudflare = cloudflare
-  }
-
-  environment               = local.environment
-  domain_name               = "tin-nexus.com"
-  subject_alternative_names = ["*.tin-nexus.com"]
-  cloudflare_zone_name      = "tin-nexus.com"
-
-  tags = local.common_tags
 }
 
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
+data "aws_acm_certificate" "api" {
+  provider    = aws.us_east_1
+  domain      = "tin-nexus.com"
+  statuses    = ["ISSUED"]
+  most_recent = true
+}
+
 module "network" {
   source = "../../modules/network"
 
+  environment  = local.environment
   vpc_cidr     = local.vpc_cidr
-  cluster_name = "${local.environment}-capstone-eks"
+  cluster_name = local.cluster_name
   public_subnets = {
     (data.aws_availability_zones.available.names[0]) = cidrsubnet(local.vpc_cidr, 8, 0)
     (data.aws_availability_zones.available.names[1]) = cidrsubnet(local.vpc_cidr, 8, 1)
@@ -87,6 +81,10 @@ module "network" {
   private_subnets = {
     (data.aws_availability_zones.available.names[0]) = cidrsubnet(local.vpc_cidr, 8, 10)
     (data.aws_availability_zones.available.names[1]) = cidrsubnet(local.vpc_cidr, 8, 11)
+  }
+  database_subnets = {
+    (data.aws_availability_zones.available.names[0]) = cidrsubnet(local.vpc_cidr, 8, 20)
+    (data.aws_availability_zones.available.names[1]) = cidrsubnet(local.vpc_cidr, 8, 21)
   }
 
   tags = local.common_tags
@@ -105,21 +103,7 @@ module "sqs" {
   source = "../../modules/sqs"
 
   environment = local.environment
-  queue_name  = "${local.environment}-user-events"
-
-  tags = local.common_tags
-}
-
-module "ecr" {
-  source = "../../modules/ecr"
-
-  environment = local.environment
-  repository_names = [
-    "nexus-auth-service",
-    "nexus-profile-service",
-  ]
-  force_delete = true
-  kms_key_arn  = module.kms.key_arn
+  queue_name  = "user-events"
 
   tags = local.common_tags
 }
@@ -127,13 +111,12 @@ module "ecr" {
 module "rds" {
   source = "../../modules/rds"
 
-  environment                     = local.environment
   identifier                      = "${local.environment}-nexus-postgres"
   database_name                   = "nexus"
   master_username                 = "nexus_admin"
   performance_insights_kms_key_id = module.kms.key_arn
   vpc_id                          = module.network.vpc_id
-  subnet_ids                      = module.network.private_subnet_ids
+  subnet_ids                      = module.network.database_subnet_ids
   allowed_security_group_id       = module.network.node_security_group_id
   engine_version                  = "18"
   parameter_group_family          = "postgres18"
@@ -166,8 +149,10 @@ module "eks" {
   source = "../../modules/eks"
 
   environment                      = local.environment
+  name                             = "${local.project}-eks"
   cluster_version                  = "1.36"
   private_subnet_ids               = module.network.private_subnet_ids
+  node_security_group_id           = module.network.node_security_group_id
   system_node_instance_type        = "t3.small"
   system_node_desired_size         = 5
   system_node_max_pods             = 30
@@ -204,12 +189,14 @@ module "karpenter" {
 
   depends_on = [module.eks]
 
-  cluster_name             = module.eks.cluster_name
-  cluster_endpoint         = module.eks.cluster_endpoint
-  karpenter_irsa_role_arn  = module.iam.irsa_role_arns["karpenter"]
-  karpenter_irsa_role_name = module.iam.karpenter_controller_role_name
-  karpenter_node_role_name = module.iam.karpenter_node_role_name
-  create_node_pool         = true
+  cluster_name           = module.eks.cluster_name
+  cluster_endpoint       = module.eks.cluster_endpoint
+  oidc_provider_arn      = module.eks.oidc_provider_arn
+  create_node_pool       = true
+  instance_types         = ["t3.small"]
+  node_pool_cpu_limit    = 2
+  node_pool_memory_limit = "2Gi"
+  node_pool_node_limit   = 1
 
   tags = local.common_tags
 }
@@ -230,11 +217,10 @@ module "waf" {
 module "cloudfront" {
   source = "../../modules/cloudfront"
 
-  environment        = local.environment
   name               = "dev-nexus-api-cdn"
   origin_domain_name = module.alb.dns_name
   aliases            = ["api.tin-nexus.com"]
-  certificate_arn    = module.acm.certificate_arn
+  certificate_arn    = data.aws_acm_certificate.api.arn
 
   tags = local.common_tags
 }

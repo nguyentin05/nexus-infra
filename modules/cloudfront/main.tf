@@ -1,9 +1,7 @@
 locals {
   origin_id = "${var.name}-alb"
   common_tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "cloudfront"
+    Module = "cloudfront"
   })
 }
 
@@ -67,7 +65,7 @@ resource "aws_cloudfront_distribution" "this" {
   }
 
   tags = merge(local.common_tags, {
-    Name = var.name
+    Name = "api-cloudfront-distribution"
   })
 }
 

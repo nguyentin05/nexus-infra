@@ -1,9 +1,11 @@
 variable "environment" {
-  type = string
+  description = "Optional deployment environment used to namespace the KMS alias"
+  type        = string
+  default     = null
 }
 
 variable "key_alias" {
-  description = "Alias cho KMS key"
+  description = "KMS key alias without the alias/ or environment prefix"
   type        = string
 }
 

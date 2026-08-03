@@ -6,10 +6,11 @@ resource "aws_kms_key" "this" {
 
   tags = merge(var.tags, {
     Module = "kms"
+    Name   = var.key_alias
   })
 }
 
 resource "aws_kms_alias" "this" {
-  name          = "alias/${var.environment}-${var.key_alias}"
+  name          = "alias/${var.environment == null ? var.key_alias : "${var.environment}-${var.key_alias}"}"
   target_key_id = aws_kms_key.this.key_id
 }

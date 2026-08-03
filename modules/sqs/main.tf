@@ -1,13 +1,11 @@
 locals {
   common_tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "sqs"
+    Module = "sqs"
   })
 }
 
 resource "aws_sqs_queue" "dlq" {
-  name                      = "${var.queue_name}-dlq"
+  name                      = "${var.environment}-${var.queue_name}-dlq"
   message_retention_seconds = 1209600
   sqs_managed_sse_enabled   = true
 
@@ -17,7 +15,7 @@ resource "aws_sqs_queue" "dlq" {
 }
 
 resource "aws_sqs_queue" "this" {
-  name                       = var.queue_name
+  name                       = "${var.environment}-${var.queue_name}"
   visibility_timeout_seconds = var.visibility_timeout_seconds
   message_retention_seconds  = var.message_retention_seconds
   sqs_managed_sse_enabled    = true
