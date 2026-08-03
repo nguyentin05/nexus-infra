@@ -10,7 +10,11 @@ locals {
 }
 
 resource "aws_s3_bucket" "tfstate" {
-  bucket = var.state_bucket_name
+  #checkov:skip=CKV_AWS_18:A dedicated access-log bucket is unnecessary for this bootstrap state bucket.
+  #checkov:skip=CKV2_AWS_62:Terraform state changes do not require event notifications.
+  #checkov:skip=CKV_AWS_144:Versioning provides recovery without cross-region replication for this project.
+  #checkov:skip=CKV_AWS_145:SSE-S3 is sufficient for the bootstrap state bucket and avoids a KMS bootstrap dependency.
+  bucket           = var.state_bucket_name
   bucket_namespace = "account-regional"
 
   tags = merge(local.common_tags, {
@@ -31,6 +35,7 @@ resource "aws_s3_bucket_versioning" "tfstate" {
   }
 }
 
+#trivy:ignore:AVD-AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
 
