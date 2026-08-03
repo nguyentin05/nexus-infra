@@ -1,3 +1,7 @@
+variable "name" {
+  type = string
+}
+
 variable "environment" {
   type = string
 }
@@ -9,6 +13,11 @@ variable "cluster_version" {
 
 variable "private_subnet_ids" {
   type = list(string)
+}
+
+variable "node_security_group_id" {
+  description = "Security group attached to EKS worker nodes."
+  type        = string
 }
 
 variable "system_node_instance_type" {

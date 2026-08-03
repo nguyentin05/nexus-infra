@@ -1,133 +1,33 @@
 locals {
   common_tags = merge(var.tags, {
-    ManagedBy = "terraform"
-    Module    = "karpenter"
+    Module = "karpenter"
   })
-
-  interruption_events = {
-    health_event = {
-      name        = "HealthEvent"
-      description = "Karpenter interrupt - AWS health event"
-      event_pattern = {
-        source      = ["aws.health"]
-        detail-type = ["AWS Health Event"]
-      }
-    }
-    spot_interrupt = {
-      name        = "SpotInterrupt"
-      description = "Karpenter interrupt - EC2 spot instance interruption warning"
-      event_pattern = {
-        source      = ["aws.ec2"]
-        detail-type = ["EC2 Spot Instance Interruption Warning"]
-      }
-    }
-    instance_rebalance = {
-      name        = "InstanceRebalance"
-      description = "Karpenter interrupt - EC2 instance rebalance recommendation"
-      event_pattern = {
-        source      = ["aws.ec2"]
-        detail-type = ["EC2 Instance Rebalance Recommendation"]
-      }
-    }
-    instance_state_change = {
-      name        = "InstanceStateChange"
-      description = "Karpenter interrupt - EC2 instance state-change notification"
-      event_pattern = {
-        source      = ["aws.ec2"]
-        detail-type = ["EC2 Instance State-change Notification"]
-      }
-    }
-    capacity_reservation_interruption = {
-      name        = "CRInterruption"
-      description = "Karpenter interrupt - EC2 capacity reservation instance interruption warning"
-      event_pattern = {
-        source      = ["aws.ec2"]
-        detail-type = ["EC2 Capacity Reservation Instance Interruption Warning"]
-      }
-    }
-  }
 }
 
-resource "aws_sqs_queue" "this" {
-  name                      = "Karpenter-${var.cluster_name}"
-  message_retention_seconds = 300
-  sqs_managed_sse_enabled   = true
+module "aws_resources" {
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "20.37.2"
+
+  cluster_name = var.cluster_name
+
+  enable_pod_identity             = false
+  enable_irsa                     = true
+  irsa_oidc_provider_arn          = var.oidc_provider_arn
+  irsa_namespace_service_accounts = ["karpenter:karpenter"]
+  enable_v1_permissions           = true
+
+  iam_role_name           = "${var.cluster_name}-karpenter-controller"
+  node_iam_role_name      = "${var.cluster_name}-karpenter-node"
+  enable_spot_termination = true
+  queue_name              = "Karpenter-${var.cluster_name}"
+  create_access_entry     = true
+  create_node_iam_role    = true
+
+  node_iam_role_additional_policies = {
+    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  }
 
   tags = local.common_tags
-}
-
-data "aws_iam_policy_document" "queue" {
-  statement {
-    sid       = "SqsWrite"
-    actions   = ["sqs:SendMessage"]
-    resources = [aws_sqs_queue.this.arn]
-
-    principals {
-      type        = "Service"
-      identifiers = ["events.amazonaws.com"]
-    }
-  }
-
-  statement {
-    sid       = "DenyHTTP"
-    effect    = "Deny"
-    actions   = ["sqs:*"]
-    resources = [aws_sqs_queue.this.arn]
-
-    condition {
-      test     = "Bool"
-      variable = "aws:SecureTransport"
-      values   = ["false"]
-    }
-
-    principals {
-      type        = "*"
-      identifiers = ["*"]
-    }
-  }
-}
-
-resource "aws_sqs_queue_policy" "this" {
-  queue_url = aws_sqs_queue.this.id
-  policy    = data.aws_iam_policy_document.queue.json
-}
-
-data "aws_iam_policy_document" "karpenter_interruption" {
-  statement {
-    actions = [
-      "sqs:DeleteMessage",
-      "sqs:GetQueueAttributes",
-      "sqs:GetQueueUrl",
-      "sqs:ReceiveMessage",
-    ]
-    resources = [aws_sqs_queue.this.arn]
-  }
-}
-
-resource "aws_iam_role_policy" "karpenter_interruption" {
-  name   = "${var.cluster_name}-karpenter-interruption"
-  role   = var.karpenter_irsa_role_name
-  policy = data.aws_iam_policy_document.karpenter_interruption.json
-}
-
-resource "aws_cloudwatch_event_rule" "this" {
-  for_each = local.interruption_events
-
-  name          = substr("${var.cluster_name}-karpenter-${each.value.name}", 0, 64)
-  description   = each.value.description
-  event_pattern = jsonencode(each.value.event_pattern)
-
-  tags = local.common_tags
-}
-
-resource "aws_cloudwatch_event_target" "this" {
-  for_each = local.interruption_events
-
-  rule      = aws_cloudwatch_event_rule.this[each.key].name
-  target_id = "KarpenterInterruptionQueueTarget"
-  arn       = aws_sqs_queue.this.arn
-
-  depends_on = [aws_sqs_queue_policy.this]
 }
 
 resource "helm_release" "karpenter" {
@@ -138,6 +38,7 @@ resource "helm_release" "karpenter" {
   chart            = "karpenter"
   version          = var.karpenter_version
   wait             = true
+  timeout          = 600
 
   values = [<<-EOT
     nodeSelector:
@@ -145,10 +46,10 @@ resource "helm_release" "karpenter" {
     settings:
       clusterName: ${var.cluster_name}
       clusterEndpoint: ${var.cluster_endpoint}
-      interruptionQueue: ${aws_sqs_queue.this.name}
+      interruptionQueue: ${module.aws_resources.queue_name}
     serviceAccount:
       annotations:
-        eks.amazonaws.com/role-arn: ${var.karpenter_irsa_role_arn}
+        eks.amazonaws.com/role-arn: ${module.aws_resources.iam_role_arn}
     tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
@@ -158,10 +59,7 @@ resource "helm_release" "karpenter" {
   EOT
   ]
 
-  depends_on = [
-    aws_iam_role_policy.karpenter_interruption,
-    aws_sqs_queue_policy.this,
-  ]
+  depends_on = [module.aws_resources]
 }
 
 resource "kubectl_manifest" "ec2_node_class" {
@@ -203,8 +101,8 @@ resource "kubectl_manifest" "ec2_node_class" {
             karpenter.sh/discovery: ${var.cluster_name}
       securityGroupSelectorTerms:
         - tags:
-            karpenter.sh/discovery: ${var.cluster_name}
-      role: ${var.karpenter_node_role_name}
+            karpenter.sh/node-security-group: ${var.cluster_name}
+      role: ${module.aws_resources.node_iam_role_name}
       amiSelectorTerms:
         - alias: al2023@latest
       tags:
@@ -243,15 +141,9 @@ resource "kubectl_manifest" "node_pool" {
           expireAfter: 720h
           terminationGracePeriod: 10m
           requirements:
-            - key: "karpenter.k8s.aws/instance-category"
+            - key: node.kubernetes.io/instance-type
               operator: In
-              values: ["c", "m", "r"]
-            - key: "karpenter.k8s.aws/instance-family"
-              operator: In
-              values: ["m5","m5d","c5","c5d","c4","r4"]
-            - key: karpenter.k8s.aws/instance-cpu
-              operator: In
-              values: ["4", "8", "16", "32"]
+              values: ${jsonencode(var.instance_types)}
             - key: karpenter.k8s.aws/instance-hypervisor
               operator: In
               values: ["nitro"]

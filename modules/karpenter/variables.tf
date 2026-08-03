@@ -6,16 +6,8 @@ variable "cluster_endpoint" {
   type = string
 }
 
-variable "karpenter_irsa_role_arn" {
-  type = string
-}
-
-variable "karpenter_irsa_role_name" {
-  type = string
-}
-
-variable "karpenter_node_role_name" {
-  description = "The name of the IAM role for Karpenter nodes (used by EC2NodeClass)"
+variable "oidc_provider_arn" {
+  description = "ARN of the EKS OIDC provider used by the Karpenter controller IRSA role"
   type        = string
 }
 
@@ -28,6 +20,16 @@ variable "capacity_types" {
   description = "EC2 capacity types Karpenter may provision. Spot requires interruption handling before use."
   type        = list(string)
   default     = ["on-demand"]
+}
+
+variable "instance_types" {
+  description = "Exact EC2 instance types Karpenter may provision"
+  type        = list(string)
+
+  validation {
+    condition     = length(var.instance_types) > 0
+    error_message = "instance_types must contain at least one EC2 instance type."
+  }
 }
 
 variable "node_pool_cpu_limit" {

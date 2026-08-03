@@ -3,9 +3,9 @@ output "node_pool_name" {
 }
 
 output "interruption_queue_name" {
-  value = aws_sqs_queue.this.name
+  value = module.aws_resources.queue_name
 }
 
 output "interruption_queue_arn" {
-  value = aws_sqs_queue.this.arn
+  value = module.aws_resources.queue_arn
 }
