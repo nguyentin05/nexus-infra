@@ -5,6 +5,7 @@ locals {
 }
 
 module "aws_resources" {
+  #checkov:skip=CKV_TF_1:The Terraform Registry module is pinned to an exact version.
   source  = "terraform-aws-modules/eks/aws//modules/karpenter"
   version = "20.37.2"
 
