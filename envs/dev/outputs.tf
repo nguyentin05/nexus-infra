@@ -25,12 +25,12 @@ output "app_irsa_role_arns" {
 
 output "acm_certificate_arn" {
   description = "Validated ACM certificate ARN for CloudFront"
-  value       = module.acm.certificate_arn
+  value       = data.aws_acm_certificate.api.arn
 }
 
 output "cloudflare_zone_id" {
   description = "Cloudflare DNS zone ID"
-  value       = module.acm.cloudflare_zone_id
+  value       = data.cloudflare_zone.this.id
 }
 
 output "cloudfront_distribution_id" {

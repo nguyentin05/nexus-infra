@@ -1,20 +1,18 @@
 locals {
-  common_tags = merge(var.tags, {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-    Module      = "acm"
-  })
-
-  certificate_domains = distinct(concat([var.domain_name], var.subject_alternative_names))
-
   validation_domain_keys = toset([
-    for domain in local.certificate_domains : trimprefix(domain, "*.")
+    for domain in concat([var.domain_name], var.subject_alternative_names) :
+    trimprefix(domain, "*.")
   ])
+
+  common_tags = merge(var.tags, {
+    Module = "acm"
+  })
 }
 
-data "cloudflare_zones" "this" {
-  name   = var.cloudflare_zone_name
-  status = "active"
+data "cloudflare_zone" "this" {
+  filter = {
+    name = var.cloudflare_zone_name
+  }
 }
 
 resource "aws_acm_certificate" "this" {
@@ -24,7 +22,7 @@ resource "aws_acm_certificate" "this" {
   validation_method         = "DNS"
 
   tags = merge(local.common_tags, {
-    Name = var.domain_name
+    Name = "acm-certificate"
   })
 
   lifecycle {
@@ -33,7 +31,6 @@ resource "aws_acm_certificate" "this" {
 }
 
 locals {
-  cloudflare_zone_id = one(data.cloudflare_zones.this.result[*].id)
   validation_options_by_domain = {
     for option in aws_acm_certificate.this.domain_validation_options :
     trimprefix(option.domain_name, "*.") => {
@@ -50,7 +47,7 @@ locals {
 resource "cloudflare_dns_record" "validation" {
   for_each = local.validation_domain_keys
 
-  zone_id = local.cloudflare_zone_id
+  zone_id = data.cloudflare_zone.this.id
   name    = local.validation_options_map[each.key].name
   type    = local.validation_options_map[each.key].type
   content = local.validation_options_map[each.key].content

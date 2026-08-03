@@ -1,24 +1,8 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
-data "tls_certificate" "github_actions" {
+
+data "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
-}
-
-resource "aws_iam_openid_connect_provider" "github_actions" {
-  url = "https://token.actions.githubusercontent.com"
-
-  client_id_list = ["sts.amazonaws.com"]
-
-  thumbprint_list = [
-    data.tls_certificate.github_actions.certificates[0].sha1_fingerprint,
-  ]
-
-  tags = {
-    Project     = "capstone"
-    Environment = "dev"
-    ManagedBy   = "terraform"
-    Module      = "github-actions"
-  }
 }
 
 data "aws_iam_policy_document" "github_actions_assume_role" {
@@ -27,7 +11,7 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
 
     principals {
       type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github_actions.arn]
+      identifiers = [data.aws_iam_openid_connect_provider.github_actions.arn]
     }
 
     condition {
@@ -57,12 +41,10 @@ resource "aws_iam_role" "github_actions_gitops" {
   name               = "dev-github-actions-gitops"
   assume_role_policy = data.aws_iam_policy_document.github_actions_assume_role.json
 
-  tags = {
-    Project     = "capstone"
-    Environment = "dev"
-    ManagedBy   = "terraform"
-    Module      = "github-actions"
-  }
+  tags = merge(local.common_tags, {
+    Name   = "dev-github-actions-gitops"
+    Module = "github-actions"
+  })
 }
 
 resource "aws_iam_role_policy" "github_actions_eks" {
@@ -81,75 +63,4 @@ resource "aws_eks_access_entry" "github_actions_gitops" {
 output "github_actions_role_arn" {
   description = "IAM role ARN used by nexus-gitops GitHub Actions workflows"
   value       = aws_iam_role.github_actions_gitops.arn
-}
-
-data "aws_iam_policy_document" "github_actions_app_assume_role" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [aws_iam_openid_connect_provider.github_actions.arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:nguyentin05/nexus-app:ref:refs/heads/main"]
-    }
-  }
-}
-
-data "aws_iam_policy_document" "github_actions_app_ecr" {
-  statement {
-    sid       = "GetAuthorizationToken"
-    actions   = ["ecr:GetAuthorizationToken"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid = "PublishAppImages"
-    actions = [
-      "ecr:BatchCheckLayerAvailability",
-      "ecr:BatchGetImage",
-      "ecr:CompleteLayerUpload",
-      "ecr:GetDownloadUrlForLayer",
-      "ecr:InitiateLayerUpload",
-      "ecr:PutImage",
-      "ecr:UploadLayerPart",
-    ]
-    resources = [
-      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-auth-service",
-      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-profile-service",
-    ]
-  }
-}
-
-resource "aws_iam_role" "github_actions_app" {
-  name               = "dev-github-actions-app-release"
-  assume_role_policy = data.aws_iam_policy_document.github_actions_app_assume_role.json
-
-  tags = {
-    Project     = "capstone"
-    Environment = "dev"
-    ManagedBy   = "terraform"
-    Module      = "github-actions"
-  }
-}
-
-resource "aws_iam_role_policy" "github_actions_app_ecr" {
-  name   = "publish-app-images"
-  role   = aws_iam_role.github_actions_app.id
-  policy = data.aws_iam_policy_document.github_actions_app_ecr.json
-}
-
-output "github_actions_app_role_arn" {
-  description = "IAM role ARN used by nexus-app to publish signed ECR images"
-  value       = aws_iam_role.github_actions_app.arn
 }

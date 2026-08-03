@@ -1,8 +1,3 @@
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
 variable "repository_names" {
   description = "ECR repository names managed by this module"
   type        = set(string)

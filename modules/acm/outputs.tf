@@ -10,5 +10,5 @@ output "certificate_domain_name" {
 
 output "cloudflare_zone_id" {
   description = "Cloudflare DNS zone ID"
-  value       = local.cloudflare_zone_id
+  value       = data.cloudflare_zone.this.id
 }
