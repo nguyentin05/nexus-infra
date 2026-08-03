@@ -7,17 +7,16 @@ locals {
 
 #trivy:ignore:AVD-AWS-0011
 resource "aws_cloudfront_distribution" "this" {
-  #checkov:skip=CKV_AWS_68:The regional WAF is attached to the ALB origin to keep one inspection layer.
   #checkov:skip=CKV_AWS_86:CloudFront access logging requires an S3 logging boundary and is deferred.
   #checkov:skip=CKV_AWS_374:The public API is intentionally available globally.
   #checkov:skip=CKV_AWS_305:This is an API distribution and has no root document.
   #checkov:skip=CKV_AWS_310:The current platform is single-region and has no valid failover origin.
-  #checkov:skip=CKV2_AWS_47:The ALB WAF uses AWS managed Common and KnownBadInputs rule groups.
   enabled         = true
   is_ipv6_enabled = true
   comment         = var.name
   aliases         = var.aliases
   price_class     = "PriceClass_100"
+  web_acl_id      = var.web_acl_id
 
   origin {
     domain_name = var.origin_domain_name

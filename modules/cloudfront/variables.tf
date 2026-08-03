@@ -18,8 +18,14 @@ variable "certificate_arn" {
   type        = string
 }
 
+variable "web_acl_id" {
+  description = "CloudFront-scoped WAF Web ACL ARN"
+  type        = string
+  default     = null
+}
+
 variable "origin_protocol_policy" {
-  description = "Protocol policy used by CloudFront when connecting to the ALB origin"
+  description = "Protocol policy used by CloudFront when connecting to the origin"
   type        = string
   default     = "http-only"
 }
