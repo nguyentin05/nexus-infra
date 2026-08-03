@@ -122,7 +122,6 @@ module "iam" {
   source = "../../modules/iam"
 
   environment           = local.environment
-  cluster_name          = module.eks.cluster_name
   oidc_provider_arn     = module.eks.oidc_provider_arn
   oidc_provider_url     = module.eks.oidc_provider_url
   vault_kms_key_arn     = module.kms.key_arn
