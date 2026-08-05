@@ -118,12 +118,15 @@ module "rds" {
   vpc_id                          = module.network.vpc_id
   subnet_ids                      = module.network.database_subnet_ids
   allowed_security_group_id       = module.network.node_security_group_id
-  instance_class                  = "db.m6g.large"
+  engine_version                  = "18"
+  parameter_group_family          = "postgres18"
+  instance_class                  = "db.t3.micro"
   allocated_storage               = 20
   backup_retention_period         = 7
-  multi_az                        = true
-  deletion_protection             = true
-  skip_final_snapshot             = false
+  log_retention_days              = 14
+  multi_az                        = false
+  deletion_protection             = false
+  skip_final_snapshot             = true
   apply_immediately               = false
 
   tags = local.common_tags
@@ -132,10 +135,11 @@ module "rds" {
 module "nlb" {
   source = "../../modules/nlb"
 
-  environment              = local.environment
-  name                     = "${local.environment}-nexus-public-nlb"
-  vpc_id                   = module.network.vpc_id
-  public_subnet_ids        = module.network.public_subnet_ids
+  environment       = local.environment
+  name              = "${local.environment}-nexus-public-nlb"
+  vpc_id            = module.network.vpc_id
+  public_subnet_ids = module.network.public_subnet_ids
+
   target_security_group_id = module.network.node_security_group_id
   target_group_name        = "${local.environment}-envoy-gateway-nlb"
 
@@ -145,14 +149,17 @@ module "nlb" {
 module "eks" {
   source = "../../modules/eks"
 
-  environment               = local.environment
-  name                      = "${local.project}-eks"
-  cluster_version           = "1.36"
-  private_subnet_ids        = module.network.private_subnet_ids
-  node_security_group_id    = module.network.node_security_group_id
-  system_node_instance_type = "t3.small"
-  system_node_desired_size  = 2
-  public_access_cidrs       = var.public_access_cidrs
+  environment                      = local.environment
+  name                             = "${local.project}-eks"
+  cluster_version                  = "1.36"
+  private_subnet_ids               = module.network.private_subnet_ids
+  node_security_group_id           = module.network.node_security_group_id
+  system_node_instance_type        = "t3.small"
+  system_node_desired_size         = 5
+  system_node_max_pods             = 30
+  enable_vpc_cni_prefix_delegation = true
+  public_access_cidrs              = var.public_access_cidrs
+  cluster_admin_principal_arn      = "arn:aws:iam::065320271480:user/tin-developer"
 
   tags = local.common_tags
 }
@@ -182,12 +189,16 @@ module "karpenter" {
 
   depends_on = [module.eks]
 
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  oidc_provider_arn = module.eks.oidc_provider_arn
-  create_node_pool  = true
-  instance_types    = ["t3.small"]
-  tags              = local.common_tags
+  cluster_name           = module.eks.cluster_name
+  cluster_endpoint       = module.eks.cluster_endpoint
+  oidc_provider_arn      = module.eks.oidc_provider_arn
+  create_node_pool       = true
+  instance_types         = ["t3.small"]
+  node_pool_cpu_limit    = 4
+  node_pool_memory_limit = "4Gi"
+  node_pool_node_limit   = 2
+
+  tags = local.common_tags
 }
 
 module "cloudfront_waf" {
