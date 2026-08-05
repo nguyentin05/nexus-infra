@@ -19,24 +19,79 @@ updates:
       prefix: "deps(cicd)"
 
   - package-ecosystem: terraform
-    directories:
-      - /bootstrap/backend
-      - /bootstrap/github-oidc
-      - /shared
-      - /envs/dev
-      - /envs/prod
-      - /modules/karpenter
+    directory: /bootstrap/backend
     schedule:
       interval: weekly
       day: monday
       time: "08:00"
       timezone: Asia/Ho_Chi_Minh
     open-pull-requests-limit: 3
-    groups:
-      terraform:
-        patterns:
-          - "*"
     labels:
       - dependencies
     commit-message:
-      prefix: "deps(terraform)"
+      prefix: "deps(bootstrap)"
+
+  - package-ecosystem: terraform
+    directory: /bootstrap/github-oidc
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps(bootstrap)"
+
+  - package-ecosystem: terraform
+    directory: /shared
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps(shared)"
+
+  - package-ecosystem: terraform
+    directory: /envs/dev
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps(dev)"
+
+  - package-ecosystem: terraform
+    directory: /envs/prod
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps(prod)"
+
+  - package-ecosystem: terraform
+    directory: /modules/karpenter
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps(karpenter)"
