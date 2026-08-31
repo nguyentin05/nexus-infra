@@ -209,6 +209,7 @@ module "cloudfront_waf" {
 
   environment                                 = local.environment
   name                                        = "${local.environment}-nexus-cloudfront-waf"
+  override_hosting_provider_ip_list_to_count  = true
   override_size_restrictions_body_to_count    = true
   override_cross_site_scripting_body_to_count = true
 
