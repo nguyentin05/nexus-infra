@@ -48,7 +48,7 @@ jobs:
           marker='<!-- terraform-plan -->'
           printf '%s\n## Terraform plan\n\n' "$marker" > plan-comment.md
 
-          for root in bootstrap/github-oidc shared envs/dev envs/prod; do
+          for root in shared envs/dev envs/prod; do
             name=${root//\//-}
             output="plans/${name}.txt"
             : > "$output"
