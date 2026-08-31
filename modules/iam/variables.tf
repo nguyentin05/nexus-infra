@@ -17,6 +17,11 @@ variable "vault_kms_key_arn" {
   type        = string
 }
 
+variable "bedrock_model_id" {
+  description = "Global Bedrock inference profile ID used by the monitoring agent"
+  type        = string
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

@@ -44,9 +44,10 @@ provider "kubectl" {
 }
 
 locals {
-  project      = "major"
-  environment  = "prod"
-  cluster_name = "${local.environment}-${local.project}-eks"
+  project          = "major"
+  environment      = "prod"
+  cluster_name     = "${local.environment}-${local.project}-eks"
+  bedrock_model_id = "global.amazon.nova-2-lite-v1:0"
 
   vpc_cidr = "10.1.0.0/16"
 
@@ -172,6 +173,7 @@ module "iam" {
   oidc_provider_url     = module.eks.oidc_provider_url
   vault_kms_key_arn     = module.kms.key_arn
   user_events_queue_arn = module.sqs.queue_arn
+  bedrock_model_id      = local.bedrock_model_id
 
   tags = local.common_tags
 }

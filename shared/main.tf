@@ -34,6 +34,7 @@ module "ecr" {
   repository_names = [
     "nexus-auth-service",
     "nexus-profile-service",
+    "nexus-monitoring-agent",
   ]
   kms_key_arn = module.ecr_kms.key_arn
   tags        = local.common_tags
@@ -96,7 +97,10 @@ data "aws_iam_policy_document" "app_release_ecr" {
       "ecr:PutImage",
       "ecr:UploadLayerPart",
     ]
-    resources = values(module.ecr.repository_arns)
+    resources = [
+      module.ecr.repository_arns["nexus-auth-service"],
+      module.ecr.repository_arns["nexus-profile-service"],
+    ]
   }
 }
 

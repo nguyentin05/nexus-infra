@@ -4,8 +4,12 @@ locals {
     profile_service = "system:serviceaccount:apps:profile-service"
   }
   monitoring_sa = {
-    grafana = "system:serviceaccount:monitoring:monitoring-grafana"
+    grafana          = "system:serviceaccount:monitoring:monitoring-grafana"
+    monitoring_agent = "system:serviceaccount:monitoring:nexus-monitoring-agent"
   }
+
+  bedrock_foundation_model_id   = trimprefix(var.bedrock_model_id, "global.")
+  bedrock_inference_profile_arn = "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.bedrock_model_id}"
 
   common_tags = merge(var.tags, {
     Module = "iam"
@@ -266,6 +270,94 @@ resource "aws_iam_role_policy" "grafana_cloudwatch" {
   name   = "cloudwatch-read"
   role   = aws_iam_role.grafana.name
   policy = data.aws_iam_policy_document.grafana_cloudwatch.json
+}
+
+# Monitoring Agent
+data "aws_iam_policy_document" "monitoring_agent_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:sub"
+      values   = [local.monitoring_sa.monitoring_agent]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider_url}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "monitoring_agent_bedrock" {
+  statement {
+    actions   = ["bedrock:InvokeModel"]
+    resources = [local.bedrock_inference_profile_arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.name]
+    }
+  }
+
+  statement {
+    actions = ["bedrock:InvokeModel"]
+    resources = [
+      "arn:aws:bedrock:${data.aws_region.current.name}::foundation-model/${local.bedrock_foundation_model_id}",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [data.aws_region.current.name]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "bedrock:InferenceProfileArn"
+      values   = [local.bedrock_inference_profile_arn]
+    }
+  }
+
+  statement {
+    actions   = ["bedrock:InvokeModel"]
+    resources = ["arn:aws:bedrock:::foundation-model/${local.bedrock_foundation_model_id}"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = ["unspecified"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "bedrock:InferenceProfileArn"
+      values   = [local.bedrock_inference_profile_arn]
+    }
+  }
+}
+
+resource "aws_iam_role" "monitoring_agent" {
+  name               = "${var.environment}-monitoring-agent-irsa"
+  assume_role_policy = data.aws_iam_policy_document.monitoring_agent_assume_role.json
+
+  tags = merge(local.common_tags, {
+    Name = "monitoring-agent-irsa"
+  })
+}
+
+resource "aws_iam_role_policy" "monitoring_agent_bedrock" {
+  name   = "bedrock-invoke"
+  role   = aws_iam_role.monitoring_agent.name
+  policy = data.aws_iam_policy_document.monitoring_agent_bedrock.json
 }
 
 # Services

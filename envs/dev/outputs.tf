@@ -73,3 +73,8 @@ output "api_domain_name" {
   description = "Public API domain name"
   value       = cloudflare_dns_record.api.name
 }
+
+output "monitoring_agent_role_arn" {
+  description = "Monitoring agent Bedrock IRSA role ARN"
+  value       = module.iam.monitoring_agent_role_arn
+}
