@@ -8,10 +8,11 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: terraform-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
@@ -80,7 +81,7 @@ jobs:
           limit-severities-for-sarif: true
 
       - name: Upload SARIF file
-        if: always() && 
+        if: always() &&
             hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with:
@@ -108,3 +109,63 @@ jobs:
             echo "| Checkov IaC scan | $CHECKOV_RESULT |"
             echo "| Trivy IaC scan | $TRIVY_RESULT |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  apply-shared:
+    name: Apply shared infrastructure
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [validate, checkov, trivy]
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-1
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_IN_AUTOMATION: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::065320271480:role/github-actions-terraform
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.14.3
+
+      - name: Apply shared infrastructure
+        working-directory: shared
+        run: |
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
+
+  apply-dev:
+    name: Apply dev infrastructure
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: apply-shared
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-1
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_IN_AUTOMATION: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::065320271480:role/github-actions-terraform
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: 1.14.3
+
+      - name: Apply dev infrastructure
+        working-directory: envs/dev
+        run: |
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
