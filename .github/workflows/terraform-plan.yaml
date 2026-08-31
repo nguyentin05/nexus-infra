@@ -75,9 +75,12 @@ jobs:
 
             {
               printf '<details><summary><code>%s</code>: %s</summary>\n\n```text\n' "$root" "$status"
-              sed -n '1,240p' "$output"
-              if [ "$(wc -l < "$output")" -gt 240 ]; then
-                printf '\n... output truncated; download the workflow artifact for the complete plan.\n'
+              if grep -q '^Terraform will perform the following actions:' "$output"; then
+                sed -n '/^Terraform will perform the following actions:/,$p' "$output"
+              elif grep -q '^No changes\.' "$output"; then
+                sed -n '/^No changes\./,$p' "$output"
+              else
+                tail -n 240 "$output"
               fi
               printf '```\n</details>\n\n'
             } >> plan-comment.md
