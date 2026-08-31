@@ -39,8 +39,6 @@ jobs:
 
       - name: Plan Terraform roots
         id: plan
-        env:
-          TF_VAR_public_access_cidrs: ${{ vars.PROD_PUBLIC_ACCESS_CIDRS }}
         run: |
           set +e
           mkdir -p plans
@@ -48,7 +46,7 @@ jobs:
           marker='<!-- terraform-plan -->'
           printf '%s\n## Terraform plan\n\n' "$marker" > plan-comment.md
 
-          for root in shared envs/dev envs/prod; do
+          for root in shared envs/dev; do
             name=${root//\//-}
             output="plans/${name}.txt"
             : > "$output"

@@ -64,9 +64,76 @@ resource "aws_iam_role_policy_attachment" "terraform_ci_power_user" {
   policy_arn = "arn:aws:iam::aws:policy/PowerUserAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "terraform_ci_iam" {
-  role       = aws_iam_role.terraform_ci.name
-  policy_arn = "arn:aws:iam::aws:policy/IAMFullAccess"
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "terraform_ci_iam" {
+  statement {
+    sid = "ManageTerraformIAMResources"
+    actions = [
+      "iam:AddClientIDToOpenIDConnectProvider",
+      "iam:AddRoleToInstanceProfile",
+      "iam:AttachRolePolicy",
+      "iam:CreateInstanceProfile",
+      "iam:CreateOpenIDConnectProvider",
+      "iam:CreatePolicy",
+      "iam:CreatePolicyVersion",
+      "iam:CreateRole",
+      "iam:DeleteInstanceProfile",
+      "iam:DeleteOpenIDConnectProvider",
+      "iam:DeletePolicy",
+      "iam:DeletePolicyVersion",
+      "iam:DeleteRole",
+      "iam:DeleteRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:GetInstanceProfile",
+      "iam:GetOpenIDConnectProvider",
+      "iam:GetPolicy",
+      "iam:GetPolicyVersion",
+      "iam:GetRole",
+      "iam:GetRolePolicy",
+      "iam:ListAttachedRolePolicies",
+      "iam:ListInstanceProfilesForRole",
+      "iam:ListPolicyVersions",
+      "iam:ListRolePolicies",
+      "iam:PassRole",
+      "iam:PutRolePolicy",
+      "iam:RemoveClientIDFromOpenIDConnectProvider",
+      "iam:RemoveRoleFromInstanceProfile",
+      "iam:TagInstanceProfile",
+      "iam:TagOpenIDConnectProvider",
+      "iam:TagPolicy",
+      "iam:TagRole",
+      "iam:UntagInstanceProfile",
+      "iam:UntagOpenIDConnectProvider",
+      "iam:UntagPolicy",
+      "iam:UntagRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:UpdateOpenIDConnectProviderThumbprint",
+      "iam:UpdateRole",
+      "iam:UpdateRoleDescription",
+    ]
+    resources = [
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:instance-profile/*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:policy/*",
+      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*",
+    ]
+  }
+
+  statement {
+    sid = "ReadTerraformIAMResources"
+    actions = [
+      "iam:ListOpenIDConnectProviders",
+      "iam:ListRoles",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "terraform_ci_iam" {
+  name   = "terraform-iam-management"
+  role   = aws_iam_role.terraform_ci.name
+  policy = data.aws_iam_policy_document.terraform_ci_iam.json
 }
 
 data "aws_iam_policy_document" "terraform_plan_assume_role" {
