@@ -188,8 +188,6 @@ resource "aws_eks_addon" "ebs_csi" {
 module "karpenter" {
   source = "../../modules/karpenter"
 
-  depends_on = [module.eks]
-
   cluster_name           = module.eks.cluster_name
   cluster_endpoint       = module.eks.cluster_endpoint
   oidc_provider_arn      = module.eks.oidc_provider_arn
