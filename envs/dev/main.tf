@@ -44,9 +44,10 @@ provider "kubectl" {
 }
 
 locals {
-  project      = "major"
-  environment  = "dev"
-  cluster_name = "${local.environment}-${local.project}-eks"
+  project          = "major"
+  environment      = "dev"
+  cluster_name     = "${local.environment}-${local.project}-eks"
+  bedrock_model_id = "global.amazon.nova-2-lite-v1:0"
 
   vpc_cidr = "10.0.0.0/16"
 
@@ -171,6 +172,7 @@ module "iam" {
   oidc_provider_url     = module.eks.oidc_provider_url
   vault_kms_key_arn     = module.kms.key_arn
   user_events_queue_arn = module.sqs.queue_arn
+  bedrock_model_id      = local.bedrock_model_id
 
   tags = local.common_tags
 }
@@ -185,8 +187,6 @@ resource "aws_eks_addon" "ebs_csi" {
 
 module "karpenter" {
   source = "../../modules/karpenter"
-
-  depends_on = [module.eks]
 
   cluster_name           = module.eks.cluster_name
   cluster_endpoint       = module.eks.cluster_endpoint
@@ -209,6 +209,7 @@ module "cloudfront_waf" {
 
   environment                                 = local.environment
   name                                        = "${local.environment}-nexus-cloudfront-waf"
+  override_hosting_provider_ip_list_to_count  = true
   override_size_restrictions_body_to_count    = true
   override_cross_site_scripting_body_to_count = true
 

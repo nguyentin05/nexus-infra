@@ -125,6 +125,17 @@ resource "aws_wafv2_web_acl" "this" {
       managed_rule_group_statement {
         name        = "AWSManagedRulesAnonymousIpList"
         vendor_name = "AWS"
+        dynamic "rule_action_override" {
+          for_each = var.override_hosting_provider_ip_list_to_count ? [1] : []
+
+          content {
+            name = "HostingProviderIPList"
+
+            action_to_use {
+              count {}
+            }
+          }
+        }
       }
     }
 

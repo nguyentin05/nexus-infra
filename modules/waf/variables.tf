@@ -31,3 +31,9 @@ variable "override_cross_site_scripting_body_to_count" {
   type        = bool
   default     = false
 }
+
+variable "override_hosting_provider_ip_list_to_count" {
+  description = "Whether to count, instead of block, AWS AnonymousIpList HostingProviderIPList matches"
+  type        = bool
+  default     = false
+}
