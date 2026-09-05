@@ -44,3 +44,8 @@ terraform.rc
 # planout
 
 AGENTS.md
+
+
+# Local benchmark tooling and results
+/benchmark-results/
+/scripts/*benchmark*.sh
