@@ -159,7 +159,7 @@ module "eks" {
   system_node_max_pods             = 30
   enable_vpc_cni_prefix_delegation = true
   public_access_cidrs              = ["0.0.0.0/0"]
-  cluster_admin_principal_arn      = "arn:aws:iam::065320271480:user/tin-developer"
+  cluster_admin_principal_arn      = "arn:aws:iam::863547508328:user/admin-cli-2"
 
   tags = local.common_tags
 }
