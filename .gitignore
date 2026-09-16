@@ -45,7 +45,4 @@ terraform.rc
 
 AGENTS.md
 
-
-# Local benchmark tooling and results
-/benchmark-results/
-/scripts/*benchmark*.sh
+/scripts/
