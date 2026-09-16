@@ -73,7 +73,10 @@ data "aws_iam_policy_document" "app_release_assume_role" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:nguyentin05/nexus-app:ref:refs/heads/main"]
+      values = [
+        "repo:nguyentin05/nexus-app:ref:refs/heads/main",
+        "repo:nguyentin05/nexus-monitoring-agent:ref:refs/heads/main",
+      ]
     }
   }
 }
@@ -100,6 +103,7 @@ data "aws_iam_policy_document" "app_release_ecr" {
     resources = [
       module.ecr.repository_arns["nexus-auth-service"],
       module.ecr.repository_arns["nexus-profile-service"],
+      module.ecr.repository_arns["nexus-monitoring-agent"],
     ]
   }
 }
