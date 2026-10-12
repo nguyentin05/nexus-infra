@@ -162,6 +162,7 @@ data "aws_iam_policy_document" "kyverno_assume_role" {
       values = [
         "system:serviceaccount:kyverno:kyverno-admission-controller",
         "system:serviceaccount:kyverno:kyverno-background-controller",
+        "system:serviceaccount:kyverno:kyverno-reports-controller",
       ]
     }
 
@@ -188,6 +189,7 @@ data "aws_iam_policy_document" "kyverno_ecr" {
     resources = [
       "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-auth-service",
       "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-profile-service",
+      "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/nexus-monitoring-agent",
     ]
   }
 }

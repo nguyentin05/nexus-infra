@@ -1,7 +1,7 @@
 variable "state_bucket_name" {
   description = "Globally unique S3 bucket name used for Terraform state"
   type        = string
-  default     = "terraform-state-065320271480-ap-southeast-1-an"
+  default     = "terraform-state-863547508328-ap-southeast-1-an"
 }
 
 variable "aws_region" {

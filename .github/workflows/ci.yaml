@@ -126,7 +126,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
-          role-to-assume: arn:aws:iam::065320271480:role/github-actions-terraform
+          role-to-assume: arn:aws:iam::863547508328:role/github-actions-terraform
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -156,7 +156,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6.2.3
         with:
-          role-to-assume: arn:aws:iam::065320271480:role/github-actions-terraform
+          role-to-assume: arn:aws:iam::863547508328:role/github-actions-terraform
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -168,4 +168,7 @@ jobs:
         working-directory: envs/dev
         run: |
           terraform init -input=false
+          terraform apply -input=false -auto-approve \
+            -target=aws_eks_access_entry.terraform_ci \
+            -target=aws_eks_access_policy_association.terraform_ci
           terraform apply -input=false -auto-approve
